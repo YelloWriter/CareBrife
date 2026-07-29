@@ -799,23 +799,7 @@ function App() {
       </header>
 
       <main>
-        <section className="hero-title-section landing" id="top">
-          <h1 className="visually-hidden">
-            부모님 진료, 함께 못 가도 준비는 함께할 수 있어요.
-          </h1>
-          <picture className="hero-title-picture">
-            <source
-              media="(max-width: 680px)"
-              srcSet="/jinryo-hero-title-mobile.png"
-            />
-            <img
-              src="/jinryo-hero-title.png"
-              alt=""
-              width="1729"
-              height="910"
-              fetchPriority="high"
-            />
-          </picture>
+        <section className="hero-composed landing" id="top">
           <div className="leaf-shadow leaf-shadow-top" aria-hidden="true">
             <span />
             <span />
@@ -827,26 +811,66 @@ function App() {
             <span />
             <span />
           </div>
-          <div className="hero-title-actions">
-            <p>
-              부모님의 증상, 복용약, 최근 변화와 궁금한 점을 병원에서 보여줄
-              한 장으로 정리해드려요.
-            </p>
-            <div className="hero-actions">
-              <a className="button button-primary" href="#create-report">
-                진료한장 만들어보기
-                <ArrowDown size={18} aria-hidden="true" />
-              </a>
-              <BetaLink className="button button-secondary">
-                베타테스터 신청하기
-                <ArrowRight size={18} aria-hidden="true" />
-              </BetaLink>
+          <div className="hero-composed-inner">
+            <div className="hero-composed-copy">
+              <div className="hero-composed-brand">
+                <Brand />
+              </div>
+              <h1>
+                <span>부모님 진료,</span>
+                <span>
+                  <em>함께</em> 못 가도
+                </span>
+                <span>
+                  준비는 <em>함께</em>할 수 있어요.
+                </span>
+              </h1>
+              <p className="hero-composed-tagline">
+                부모님의 진료를 준비하는 가장 다정한 한 장
+              </p>
+              <p className="hero-composed-description">
+                부모님의 증상, 복용약, 최근 변화와 궁금한 점을 병원에서
+                보여줄 한 장으로 정리해드려요.
+              </p>
+              <div className="hero-actions hero-composed-actions">
+                <a className="button button-primary" href="#create-report">
+                  진료한장 만들어보기
+                  <ArrowDown size={18} aria-hidden="true" />
+                </a>
+                <BetaLink className="button button-secondary">
+                  베타테스터 신청하기
+                  <ArrowRight size={18} aria-hidden="true" />
+                </BetaLink>
+              </div>
+              <div className="hero-notice hero-composed-notice">
+                <ShieldCheck size={18} aria-hidden="true" />
+                <span>
+                  진단이나 처방 대신, 진료 전에 필요한 정보를 함께 정리해요.
+                </span>
+              </div>
             </div>
-            <div className="hero-notice">
-              <ShieldCheck size={18} aria-hidden="true" />
-              <span>
-                진단이나 처방 대신, 진료 전에 필요한 정보를 함께 정리해요.
-              </span>
+
+            <div className="hero-paper-stage" aria-hidden="true">
+              <div className="hero-paper-card">
+                <img
+                  src="/jinryo-hanjang-symbol-cropped.png"
+                  alt=""
+                  width="120"
+                  height="92"
+                />
+                <div className="hero-paper-rule hero-paper-rule-strong" />
+                <div className="hero-paper-lines">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <div className="hero-paper-signature">
+                  <span />
+                  <span />
+                </div>
+              </div>
             </div>
           </div>
         </section>

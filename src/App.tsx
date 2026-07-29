@@ -8,14 +8,18 @@ import {
   CirclePlus,
   FileCheck2,
   Heart,
+  Image as ImageIcon,
   ListChecks,
   LockKeyhole,
   Mic,
   Minus,
+  PhoneCall,
   Printer,
+  RefreshCcw,
   ShieldCheck,
   Sparkles,
   Square,
+  UsersRound,
 } from "lucide-react";
 import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 
@@ -629,10 +633,13 @@ function App() {
             <h1>
               부모님 진료,
               <br />
-              함께 못 가도 준비는
+              <span className="hero-accent">함께</span> 못 가도
               <br />
-              <span>함께할 수 있어요.</span>
+              준비는 <span className="hero-accent">함께</span>할 수 있어요.
             </h1>
+            <p className="hero-brand-line">
+              부모님의 진료를 준비하는 가장 다정한 한 장, 진료한장
+            </p>
             <p className="hero-description">
               부모님의 증상, 복용약, 최근 변화와 궁금한 점을
               <br className="desktop-break" /> 병원에서 보여줄 한 장으로
@@ -648,9 +655,6 @@ function App() {
                 <ArrowRight size={18} aria-hidden="true" />
               </BetaLink>
             </div>
-            <p className="brand-copy">
-              부모님의 진료를 준비하는 가장 다정한 한 장, 진료한장
-            </p>
             <div className="hero-notice">
               <ShieldCheck size={18} aria-hidden="true" />
               <span>
@@ -746,11 +750,101 @@ function App() {
           </div>
         </section>
 
+        <section className="methods-section landing" aria-labelledby="methods-title">
+          <div className="section-heading">
+            <p className="section-kicker">HOW WE CARE TODAY</p>
+            <h2 id="methods-title">
+              지금도 나름의 방법으로
+              <br />
+              잘 챙기고 있어요.
+            </h2>
+          </div>
+          <div className="methods-grid">
+            <article>
+              <PhoneCall size={25} aria-hidden="true" />
+              <p>전화로 어디가 불편하신지 다시 여쭤봐요</p>
+            </article>
+            <article>
+              <ImageIcon size={25} aria-hidden="true" />
+              <p>카톡에서 예전에 받은 약봉투 사진을 찾아요</p>
+            </article>
+            <article>
+              <ListChecks size={25} aria-hidden="true" />
+              <p>생각나는 질문을 메모장에 따로 적어둬요</p>
+            </article>
+            <article>
+              <UsersRound size={25} aria-hidden="true" />
+              <p>함께 가는 가족에게 내용을 다시 설명해요</p>
+            </article>
+            <article>
+              <RefreshCcw size={25} aria-hidden="true" />
+              <p>진료 때마다 비슷한 준비를 반복하게 돼요</p>
+            </article>
+          </div>
+          <div className="methods-summary">
+            <strong>
+              필요한 정보는 이미 우리에게 있어요.
+              <br />
+              진료 전에 한 번에 보기 쉽게 정리되지 않았을 뿐이랍니다.
+            </strong>
+            <p>
+              진료한장은 이 방법을 바꾸려는 게 아니라, 흩어진 내용을 한 번에
+              모을 수 있게 도와드려요.
+            </p>
+          </div>
+        </section>
+
+        <section className="value-section landing" aria-labelledby="value-title">
+          <div className="section-heading">
+            <p className="section-kicker">ONE CARING PAGE</p>
+            <h2 id="value-title">
+              진료한장은 부모님의 이야기를
+              <br />
+              진료에 쓸 수 있는 <span>한 장</span>으로 정리합니다.
+            </h2>
+          </div>
+          <div className="value-grid">
+            <article>
+              <div className="value-icon">
+                <Heart size={25} aria-hidden="true" />
+              </div>
+              <h3>편하게 이야기하기</h3>
+              <p>
+                부모님이 직접 불편한 점을 말씀하시거나, 자녀가 대신 입력할 수
+                있어요. 꼭 정확한 문장으로 말하지 않아도 괜찮습니다.
+              </p>
+            </article>
+            <article>
+              <div className="value-icon">
+                <UsersRound size={25} aria-hidden="true" />
+              </div>
+              <h3>함께 확인하기</h3>
+              <p>
+                증상, 복용 중인 약, 최근 달라진 점과 궁금한 내용을 자녀가
+                확인하고 필요한 부분을 더할 수 있어요.
+              </p>
+            </article>
+            <article>
+              <div className="value-icon">
+                <FileCheck2 size={25} aria-hidden="true" />
+              </div>
+              <h3>한 장으로 챙겨가기</h3>
+              <p>
+                병원에서 빠르게 볼 수 있도록 중요한 내용만 한 장으로 정리해
+                가족에게 보내거나 직접 가져갈 수 있어요.
+              </p>
+            </article>
+          </div>
+          <p className="value-note">
+            함께 병원에 가지 못하는 날에도, 진료 준비까지 혼자 맡겨두지
+            않으셔도 괜찮아요.
+          </p>
+        </section>
+
         <section className="steps landing" id="how-it-works">
           <div className="section-heading">
             <p className="section-kicker">HOW IT WORKS</p>
-            <h2>진료 전에 필요한 말들을 놓치지 않도록</h2>
-            <p>기억을 더듬는 대신, 함께 채운 한 장을 건네세요.</p>
+            <h2>진료 준비는 간단할수록 좋아요.</h2>
           </div>
           <div className="step-grid">
             <article>
@@ -758,26 +852,37 @@ function App() {
               <div className="step-icon">
                 <ListChecks size={24} aria-hidden="true" />
               </div>
-              <h3>부모님의 이야기를 적어요</h3>
-              <p>증상과 최근 변화, 복용 중인 약을 대화하듯 정리합니다.</p>
+              <h3>편하게 말하거나 입력해요</h3>
+              <p>부모님이나 자녀가 불편한 점과 궁금한 내용을 남겨주세요.</p>
             </article>
             <article>
               <span className="step-number">02</span>
               <div className="step-icon">
                 <CalendarDays size={24} aria-hidden="true" />
               </div>
-              <h3>시간 순서로 모아요</h3>
-              <p>같은 시기의 변화는 한 줄에 모여 진료 흐름을 보여줍니다.</p>
+              <h3>필요한 내용끼리 정리해요</h3>
+              <p>증상, 시작 시점, 복용약, 최근 변화와 질문으로 나눠요.</p>
             </article>
             <article>
               <span className="step-number">03</span>
               <div className="step-icon">
+                <UsersRound size={24} aria-hidden="true" />
+              </div>
+              <h3>자녀가 한 번 더 확인해요</h3>
+              <p>잘못 적힌 내용이나 빠진 부분이 없는지 쉽게 보완해요.</p>
+            </article>
+            <article>
+              <span className="step-number">04</span>
+              <div className="step-icon">
                 <Printer size={24} aria-hidden="true" />
               </div>
-              <h3>한 장으로 챙겨요</h3>
-              <p>미리 확인하고 인쇄하거나 A4 PDF로 저장할 수 있습니다.</p>
+              <h3>병원에 가져가요</h3>
+              <p>완성된 진료한장을 가족에게 보내거나 인쇄해 챙겨가요.</p>
             </article>
           </div>
+          <p className="steps-caption">
+            말하기 → 함께 확인하기 → 한 장으로 정리하기 → 병원에서 보여주기
+          </p>
         </section>
 
         <section className="privacy-band landing" id="privacy">
@@ -1337,6 +1442,123 @@ function App() {
           </div>
         </section>
 
+        <section
+          className="beta-fit-section landing"
+          aria-labelledby="beta-fit-title"
+        >
+          <div className="section-heading">
+            <p className="section-kicker">WHO WE ARE LOOKING FOR</p>
+            <h2 id="beta-fit-title">이런 경험이 있다면 함께해주세요.</h2>
+          </div>
+          <ul className="beta-fit-list">
+            <li>
+              <Check size={17} aria-hidden="true" />
+              부모님과 따로 살고 있어요.
+            </li>
+            <li>
+              <Check size={17} aria-hidden="true" />
+              정기적으로 병원에 다니시는 부모님이 있어요.
+            </li>
+            <li>
+              <Check size={17} aria-hidden="true" />
+              부모님의 증상이나 복용약을 가끔 확인해요.
+            </li>
+            <li>
+              <Check size={17} aria-hidden="true" />
+              직장이나 거리 문제로 매번 병원에 같이 가지는 못해요.
+            </li>
+            <li>
+              <Check size={17} aria-hidden="true" />
+              진료 전에 부모님이 무슨 말을 해야 할지 정리해본 적이 있어요.
+            </li>
+            <li>
+              <Check size={17} aria-hidden="true" />
+              약봉투 사진이나 병원 이야기를 카카오톡으로 받아본 적이 있어요.
+            </li>
+            <li>
+              <Check size={17} aria-hidden="true" />
+              부모님 진료 준비가 조금 더 간단했으면 좋겠다고 느껴요.
+            </li>
+          </ul>
+          <div className="beta-fit-note">
+            <strong>아직 완성된 서비스는 아니에요.</strong>
+            <p>
+              부모님 진료를 챙겨보신 분들의 실제 경험을 들으며 더 편하고
+              따뜻한 방법을 만들어가고 있답니다.
+            </p>
+          </div>
+        </section>
+
+        <section
+          className="beta-process-section landing"
+          aria-labelledby="beta-process-title"
+        >
+          <div className="section-heading">
+            <p className="section-kicker">BETA PROCESS</p>
+            <h2 id="beta-process-title">
+              베타테스트는 이렇게 진행될 예정이에요.
+            </h2>
+          </div>
+          <div className="beta-process-grid">
+            <article>
+              <span>01</span>
+              <p>부모님 진료를 평소 어떻게 챙기는지 간단히 알려주세요.</p>
+            </article>
+            <article>
+              <span>02</span>
+              <p>진료한장의 초기 화면이나 기능을 가볍게 함께 살펴봐요.</p>
+            </article>
+            <article>
+              <span>03</span>
+              <p>편했던 점과 불편했던 점을 솔직하고 편하게 알려주세요.</p>
+            </article>
+            <article>
+              <span>04</span>
+              <p>실제로 어떤 기능이 있으면 좋을지 편하게 이야기를 나눠요.</p>
+            </article>
+          </div>
+          <p className="beta-process-note">
+            전문적인 의견이나 어려운 설명은 필요하지 않아요. 평소 경험을
+            편하게 말씀해주시면 된답니다.
+          </p>
+        </section>
+
+        <section className="beta-section landing">
+          <div>
+            <p className="section-kicker">BETA TESTER</p>
+            <h2>
+              부모님 진료 준비,
+              <br />
+              한 장부터 함께 만들어볼까요?
+            </h2>
+          </div>
+          <div className="beta-copy">
+            <p>
+              부모님 병원 진료를 챙겨본 경험이 있다면, 진료한장이 우리
+              가족에게 진짜 도움이 될지 소중한 의견을 들려주세요.
+            </p>
+            <ul>
+              <li>
+                <Check size={15} aria-hidden="true" />
+                신청한다고 유료 서비스에 가입되거나 결제가 진행되지 않아요.
+              </li>
+              <li>
+                <Check size={15} aria-hidden="true" />
+                베타테스트 일정과 참여 방법은 신청하신 분께 안내드려요.
+              </li>
+              <li>
+                <Check size={15} aria-hidden="true" />
+                안내 내용을 확인한 뒤 참여 여부를 결정해도 괜찮아요.
+              </li>
+            </ul>
+            <BetaLink className="button button-light">
+              부모님 진료, 한 장 먼저 챙겨보기
+              <ArrowRight size={18} aria-hidden="true" />
+            </BetaLink>
+            <small>유료 가입이나 결제가 아닌 베타테스터 신청입니다.</small>
+          </div>
+        </section>
+
         <section className="faq-section landing" aria-labelledby="faq-title">
           <div className="section-heading">
             <p className="section-kicker">FREQUENTLY ASKED</p>
@@ -1346,72 +1568,72 @@ function App() {
             <details>
               <summary>진료한장은 병을 진단해주는 서비스인가요?</summary>
               <p>
-                아니요. 부모님이 병원에서 전해야 할 증상과 복용약, 궁금한
-                내용을 진료 전에 정리하도록 돕는 서비스이며 진단이나 처방을
-                제공하지 않습니다.
+                아니요, 진료한장은 진단이나 처방을 해주는 곳은 아니에요.
+                부모님이 병원에서 전해야 할 증상과 복용약, 궁금한 내용을 미리
+                쉽게 정리하도록 돕는 서비스랍니다.
               </p>
             </details>
             <details>
               <summary>부모님이 직접 사용해야 하나요?</summary>
               <p>
-                부모님이 직접 말씀하실 수도 있고, 자녀가 대신 입력하거나
-                함께 내용을 확인할 수도 있어요. 가족에게 편한 방법으로
-                사용하면 됩니다.
+                부모님이 직접 말씀하실 수도 있고, 자녀가 대신 입력하거나 함께
+                내용을 확인할 수도 있어요. 편하신 방법을 선택하시면 된답니다.
               </p>
             </details>
             <details>
-              <summary>입력한 건강정보는 어디에 저장되나요?</summary>
+              <summary>부모님의 건강정보를 입력해도 괜찮을까요?</summary>
               <p>
-                현재 버전은 입력 내용을 서버에 저장하지 않습니다. 리포트와
-                AI 정리 모두 사용 중인 브라우저 안에서만 처리되며, 화면을
-                새로고침하면 입력 내용이 사라집니다.
+                현재 체험판에서는 입력한 내용이 서버에 저장되지 않아요.
+                리포트와 AI 정리는 사용 중인 브라우저 안에서 처리되며, 화면을
+                새로고침하면 입력 내용이 사라집니다. 실제 출시 서비스의 저장과
+                공유 방식은 개인정보와 건강정보를 안전하게 관리할 수 있도록
+                법률 검토와 테스트 결과를 반영해 설계할 예정이에요.
               </p>
             </details>
             <details>
-              <summary>AI 자동 정리는 유료인가요?</summary>
+              <summary>서비스는 언제 사용할 수 있나요?</summary>
               <p>
-                아니요. 별도 계정이나 API 키 없이 기기 안에서 실행되는 무료
-                AI를 사용하므로, 사용량이 늘어도 API 이용료가 청구되지
-                않습니다.
+                지금 이 페이지에서 체험판을 사용해볼 수 있어요. 정식 서비스는
+                부모님 진료를 챙기시는 자녀분들의 진짜 불편함과 생생한 경험을
+                듣고, 베타테스터분들의 의견을 충분히 반영해 꼭 필요한 기능과
+                출시 시기를 결정할 예정이에요.
+              </p>
+            </details>
+            <details>
+              <summary>
+                부모님의 병명이나 자세한 건강정보를 입력해야 하나요?
+              </summary>
+              <p>
+                베타테스터 신청 단계에서는 구체적인 병명이나 진료기록을
+                입력하지 않으셔도 돼요. 부모님의 병원 방문 빈도와 평소 진료를
+                어떻게 챙기고 계신지 정도만 간단히 여쭤보고 있어요.
               </p>
             </details>
             <details>
               <summary>신청하면 꼭 베타테스트에 참여해야 하나요?</summary>
               <p>
-                아니요. 신청 후 일정과 참여 방법을 먼저 확인하고 편하게
-                결정할 수 있습니다. 신청 자체는 유료 가입이나 결제가
-                아닙니다.
+                아니요, 부담 갖지 않으셔도 괜찮아요. 신청해주시면 일정과 참여
+                방법을 먼저 안내해 드릴 테니, 내용을 천천히 확인하시고 편하게
+                결정해 주세요.
+              </p>
+            </details>
+            <details>
+              <summary>서비스 이용료가 있나요?</summary>
+              <p>
+                지금은 서비스가 정말 필요한지, 어떻게 쓰면 편할지 확인하는
+                베타테스트 단계라서 정식 서비스의 요금이나 결제 방식은 아직
+                정해지지 않았어요. 현재 체험판과 베타테스터 신청은 무료이며
+                결제가 진행되지 않아요.
               </p>
             </details>
             <details>
               <summary>부모님과 함께 살지 않아도 사용할 수 있나요?</summary>
               <p>
-                네. 부모님과 따로 살면서 전화나 카카오톡으로 진료를
-                챙기는 자녀가 함께 준비할 수 있도록 만들었습니다.
+                네, 맞아요. 부모님과 따로 살면서 전화나 카카오톡으로 마음
+                졸이며 진료를 챙기고 계신 자녀분들을 가장 먼저 생각하며 만들고
+                있답니다.
               </p>
             </details>
-          </div>
-        </section>
-
-        <section className="beta-section landing">
-          <div>
-            <p className="section-kicker">BETA TESTER</p>
-            <h2>
-              다음 부모님 진료,
-              <br />
-              한 장 먼저 챙겨볼까요?
-            </h2>
-          </div>
-          <div className="beta-copy">
-            <p>
-              진료한장을 먼저 사용해 보고, 부모님과 자녀 모두에게 더 편한
-              서비스가 되도록 경험을 들려주세요.
-            </p>
-            <BetaLink className="button button-light">
-              부모님 진료, 한 장 먼저 챙겨보기
-              <ArrowRight size={18} aria-hidden="true" />
-            </BetaLink>
-            <small>유료 가입이나 결제가 아닌 베타테스터 신청입니다.</small>
           </div>
         </section>
       </main>

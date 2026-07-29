@@ -10,13 +10,18 @@ import {
   Heart,
   ListChecks,
   LockKeyhole,
+  Mic,
   Minus,
   Printer,
   ShieldCheck,
   Sparkles,
+  Square,
 } from "lucide-react";
+import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 
-const BETA_FORM_URL = "{{Google Forms URL}}";
+const BETA_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSdv7-MYk37xpZkBIXTOJsZLTyOBeV0_8FSu5pX_eRMaf_SwUA/viewform?usp=header";
+const LOCAL_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
 
 type FormData = {
   writtenDate: string;
@@ -44,6 +49,78 @@ type TimelineRow = {
   period: string;
   details: string[];
 };
+
+type ExtractedStory = Partial<Omit<FormData, "writtenDate">> & {
+  timeline?: Array<{
+    period?: string;
+    detail?: string;
+  }>;
+};
+
+type AiState = "idle" | "loading" | "organizing" | "done" | "error";
+
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  length: number;
+  [index: number]: {
+    transcript: string;
+  };
+};
+
+type SpeechRecognitionEventLike = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: SpeechRecognitionResultLike;
+  };
+};
+
+type SpeechRecognitionErrorEventLike = Event & {
+  error: string;
+};
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+const formFieldLimits: Record<keyof Omit<FormData, "writtenDate">, number> = {
+  visitGoal: 180,
+  mainSymptom: 180,
+  symptomStart: 60,
+  occurrenceContext: 100,
+  occurrencePattern: 100,
+  worseningFactors: 100,
+  relievingFactors: 100,
+  beforeAfterContext: 240,
+  careReceived: 240,
+  medications: 280,
+  questions: 300,
+  materials: 180,
+};
+
+const formFieldKeys = Object.keys(formFieldLimits) as Array<
+  keyof typeof formFieldLimits
+>;
+
+const empathyQuotes = [
+  "언제부터 아프셨는지 병원에서 잘 설명하실 수 있을까?",
+  "지금 드시는 약을 정확히 알고 계실까?",
+  "물어보려고 했던 걸 깜빡하지 않으실까?",
+  "내가 같이 못 가는데, 중요한 이야기가 잘 전달될까?",
+  "전에 보내주신 약봉투 사진이 카톡 어디에 있었더라?",
+  "진료가 다 끝난 뒤에야 물어볼 게 생각난 적이 있다.",
+];
 
 const getToday = () => {
   const now = new Date();
@@ -77,6 +154,52 @@ const formatDate = (value: string) => {
   if (!value) return "";
   const [year, month, day] = value.split("-");
   return `${year}.${month}.${day}`;
+};
+
+const readExtractedStory = (content: string): ExtractedStory => {
+  const withoutFence = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "");
+  const objectStart = withoutFence.indexOf("{");
+  const objectEnd = withoutFence.lastIndexOf("}");
+
+  if (objectStart < 0 || objectEnd < objectStart) {
+    throw new Error("정리 결과를 읽지 못했습니다.");
+  }
+
+  const parsed = JSON.parse(
+    withoutFence.slice(objectStart, objectEnd + 1),
+  ) as Record<string, unknown>;
+  const story: ExtractedStory = {};
+
+  formFieldKeys.forEach((key) => {
+    const value = parsed[key];
+    if (typeof value === "string") {
+      story[key] = value.trim().slice(0, formFieldLimits[key]);
+    }
+  });
+
+  if (Array.isArray(parsed.timeline)) {
+    story.timeline = parsed.timeline
+      .filter(
+        (item): item is Record<string, unknown> =>
+          typeof item === "object" && item !== null,
+      )
+      .map((item) => ({
+        period:
+          typeof item.period === "string"
+            ? item.period.trim().slice(0, 60)
+            : "",
+        detail:
+          typeof item.detail === "string"
+            ? item.detail.trim().slice(0, 180)
+            : "",
+      }))
+      .filter((item) => item.period && item.detail);
+  }
+
+  return story;
 };
 
 type FieldProps = {
@@ -150,22 +273,12 @@ function BetaLink({
   children: React.ReactNode;
   className?: string;
 }) {
-  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (BETA_FORM_URL.startsWith("{{")) {
-      event.preventDefault();
-      window.alert(
-        "Google Forms 주소를 연결할 자리입니다. README의 안내에 따라 링크를 교체해 주세요.",
-      );
-    }
-  };
-
   return (
     <a
       className={className}
       href={BETA_FORM_URL}
       target="_blank"
       rel="noreferrer"
-      onClick={handleClick}
     >
       {children}
     </a>
@@ -174,9 +287,21 @@ function BetaLink({
 
 function App() {
   const [form, setForm] = useState<FormData>(initialForm);
+  const [parentStory, setParentStory] = useState("");
+  const [aiState, setAiState] = useState<AiState>("idle");
+  const [aiStatus, setAiStatus] = useState(
+    "편하게 적어주시면 필요한 항목으로 나눠드려요.",
+  );
+  const [aiProgress, setAiProgress] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState(
+    "마이크 버튼을 누르고 한국어로 편하게 말씀해 주세요.",
+  );
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([
     { id: 1, period: "", detail: "" },
   ]);
+  const localAiRef = useRef<MLCEngineInterface | null>(null);
+  const voiceRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const nextTimelineId = useRef(2);
   const reportRef = useRef<HTMLElement>(null);
 
@@ -200,6 +325,7 @@ function App() {
     window.addEventListener("beforeprint", fitReportToPage);
     window.addEventListener("afterprint", resetReportScale);
     return () => {
+      voiceRecognitionRef.current?.abort();
       window.removeEventListener("beforeprint", fitReportToPage);
       window.removeEventListener("afterprint", resetReportScale);
     };
@@ -234,6 +360,182 @@ function App() {
         ? [{ id: entries[0].id, period: "", detail: "" }]
         : entries.filter((entry) => entry.id !== id),
     );
+  };
+
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      voiceRecognitionRef.current?.stop();
+      setVoiceStatus("음성 입력을 마무리하고 있어요.");
+      return;
+    }
+
+    const speechWindow = window as typeof window & {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    const RecognitionApi =
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+
+    if (!RecognitionApi) {
+      setVoiceStatus(
+        "이 브라우저에서는 음성 입력을 지원하지 않아요. 글로 직접 입력해 주세요.",
+      );
+      return;
+    }
+
+    const recognition = new RecognitionApi();
+    const storyBeforeListening = parentStory.trim();
+    let finalTranscript = "";
+
+    recognition.lang = "ko-KR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceStatus("듣고 있어요. 끝나면 ‘음성 입력 멈추기’를 눌러주세요.");
+    };
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result[0]?.transcript ?? "";
+        if (result.isFinal) {
+          finalTranscript += `${transcript} `;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      const spokenText = `${finalTranscript}${interimTranscript}`.trim();
+      setParentStory(
+        [storyBeforeListening, spokenText]
+          .filter(Boolean)
+          .join(storyBeforeListening && spokenText ? "\n" : "")
+          .slice(0, 4000),
+      );
+    };
+    recognition.onerror = (event) => {
+      const message =
+        event.error === "not-allowed" || event.error === "service-not-allowed"
+          ? "마이크 권한이 허용되지 않아 음성 입력을 멈췄어요."
+          : "음성 인식을 이어갈 수 없어 멈췄어요. 입력된 글을 확인해 주세요.";
+      setVoiceStatus(message);
+      setIsListening(false);
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      setVoiceStatus("음성 입력이 끝났어요. 글을 확인한 뒤 AI 자동 채우기를 눌러주세요.");
+      voiceRecognitionRef.current = null;
+    };
+
+    voiceRecognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error("Browser voice input failed:", error);
+      setIsListening(false);
+      setVoiceStatus("음성 입력을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      voiceRecognitionRef.current = null;
+    }
+  };
+
+  const organizeParentStory = async () => {
+    if (!parentStory.trim() || aiState === "loading" || aiState === "organizing") {
+      return;
+    }
+
+    if (!("gpu" in navigator)) {
+      setAiState("error");
+      setAiStatus(
+        "이 브라우저에서는 기기 내 AI를 사용할 수 없어요. 아래 항목을 직접 입력해 주세요.",
+      );
+      return;
+    }
+
+    try {
+      let engine = localAiRef.current;
+
+      if (!engine) {
+        setAiState("loading");
+        setAiProgress(0);
+        setAiStatus("기기 안에서 사용할 무료 AI를 준비하고 있어요.");
+        const { CreateMLCEngine } = await import("@mlc-ai/web-llm");
+        engine = await CreateMLCEngine(LOCAL_MODEL_ID, {
+          initProgressCallback: (report) => {
+            setAiProgress(Math.round(report.progress * 100));
+            setAiStatus(
+              report.progress < 1
+                ? "처음 사용할 AI 모델을 이 기기에 준비하고 있어요."
+                : "AI 준비를 마쳤어요.",
+            );
+          },
+        });
+        localAiRef.current = engine;
+      }
+
+      setAiState("organizing");
+      setAiProgress(100);
+      setAiStatus("부모님의 이야기에서 사실로 확인되는 내용만 정리하고 있어요.");
+
+      const response = await engine.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `당신은 진료 전 정보 정리 도우미입니다. 사용자가 한국어로 적은 이야기에서 명시된 사실만 추출하세요.
+진단, 처방, 질병 추정, 의학적 조언을 절대 추가하지 마세요. 확실하지 않거나 적혀 있지 않은 내용은 빈 문자열로 두세요.
+질문과 가져갈 자료, 약은 각각 한 줄에 하나씩 정리하세요. 의료진께 확인할 질문은 최대 3개만 정리하세요.
+같은 시기의 사건은 timeline의 한 항목에 줄바꿈으로 묶으세요.
+반드시 다음 키를 모두 가진 JSON 객체 하나만 반환하세요:
+{"visitGoal":"","mainSymptom":"","symptomStart":"","occurrenceContext":"","occurrencePattern":"","worseningFactors":"","relievingFactors":"","beforeAfterContext":"","careReceived":"","medications":"","questions":"","materials":"","timeline":[{"period":"","detail":""}]}`,
+          },
+          {
+            role: "user",
+            content: parentStory.trim(),
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 900,
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message.content;
+      if (!content) {
+        throw new Error("정리 결과가 비어 있습니다.");
+      }
+
+      const extracted = readExtractedStory(content);
+      setForm((current) => {
+        const next = { ...current };
+        formFieldKeys.forEach((key) => {
+          const value = extracted[key];
+          if (typeof value === "string" && value.trim()) {
+            next[key] = value;
+          }
+        });
+        return next;
+      });
+
+      if (extracted.timeline?.length) {
+        const nextEntries = extracted.timeline.map((entry) => ({
+          id: nextTimelineId.current++,
+          period: entry.period ?? "",
+          detail: entry.detail ?? "",
+        }));
+        setTimelineEntries(nextEntries);
+      }
+
+      setAiState("done");
+      setAiStatus(
+        "정리가 끝났어요. 아래 항목과 리포트를 살펴보고 다른 부분은 직접 고쳐주세요.",
+      );
+    } catch (error) {
+      console.error("Local AI organization failed:", error);
+      setAiState("error");
+      setAiStatus(
+        "자동 정리를 마치지 못했어요. 잠시 후 다시 누르거나 아래 항목을 직접 입력해 주세요.",
+      );
+    }
   };
 
   const timelineRows = useMemo<TimelineRow[]>(() => {
@@ -416,6 +718,34 @@ function App() {
           </div>
         </section>
 
+        <section className="empathy-section landing" aria-labelledby="empathy-title">
+          <div className="section-heading">
+            <p className="section-kicker">A FAMILIAR WORRY</p>
+            <h2 id="empathy-title">
+              부모님 병원 가시는 날,
+              <br />
+              이런 생각이 든 적 있나요?
+            </h2>
+          </div>
+          <div className="empathy-grid">
+            {empathyQuotes.map((quote) => (
+              <blockquote key={quote}>“{quote}”</blockquote>
+            ))}
+          </div>
+          <div className="empathy-summary">
+            <strong>
+              부모님을 챙기고 싶은 마음은 크지만,
+              <br />
+              필요한 정보가 전화와 카카오톡, 사진과 메모에 나뉘어 있는
+              경우가 참 많아요.
+            </strong>
+            <p>
+              진료한장은 익숙한 방법을 바꾸는 대신, 흩어진 내용을 진료 전에
+              한 번에 모을 수 있게 도와드려요.
+            </p>
+          </div>
+        </section>
+
         <section className="steps landing" id="how-it-works">
           <div className="section-heading">
             <p className="section-kicker">HOW IT WORKS</p>
@@ -472,11 +802,133 @@ function App() {
         <section className="workspace-section" id="create-report">
           <div className="workspace-heading">
             <p className="section-kicker">MAKE YOUR PAGE</p>
-            <h2>부모님의 진료 이야기를 한 장에 담아보세요.</h2>
-            <p>
+            <h2>
+              진료한장 처음 만나보기 <span>(체험판)</span>
+            </h2>
+            <h3>부모님의 진료 이야기를 한 장에 담아보세요.</h3>
+            <p className="workspace-instruction">
               아는 만큼만 적어도 괜찮아요. 비워둔 항목은 리포트에 나타나지
               않습니다.
             </p>
+            <p className="workspace-future-copy">
+              출시되는 서비스는 일상 속의 데이터를 모아서 병원 가기 전에
+              바로 생성해줄 거예요.
+            </p>
+          </div>
+
+          <div className="workspace-prelude">
+            <div className="story-input-card">
+              <div className="story-card-heading">
+                <div className="story-card-icon" aria-hidden="true">
+                  <Sparkles size={23} />
+                </div>
+                <div>
+                  <p className="section-kicker">TELL IT NATURALLY</p>
+                  <h3>문장으로 편하게 이야기해 주세요.</h3>
+                  <p>
+                    순서나 형식을 신경 쓰지 않아도 괜찮아요. 부모님께 들은
+                    이야기, 약, 궁금한 점을 기억나는 대로 적어주세요.
+                  </p>
+                </div>
+              </div>
+              <label htmlFor="parent-story">
+                부모님의 증상과 진료 준비 이야기
+              </label>
+              <textarea
+                id="parent-story"
+                value={parentStory}
+                onChange={(event) => setParentStory(event.target.value)}
+                rows={8}
+                maxLength={4000}
+                placeholder="예: 엄마가 지난주 월요일부터 앉았다 일어날 때 어지럽다고 하셨어요. 하루에 서너 번 정도이고 잠깐 앉아서 쉬면 괜찮아진대요. 아침마다 혈압약을 드시고 있고, 이번 진료에서는 약과 어지럼증이 관련 있는지 물어보고 싶어요. 약봉투와 최근 혈압 메모를 가져가려고 해요."
+              />
+              <div className="story-actions">
+                <div className="story-button-group">
+                  <button
+                    className={`button voice-button ${isListening ? "is-listening" : ""}`}
+                    type="button"
+                    onClick={toggleVoiceInput}
+                    aria-pressed={isListening}
+                  >
+                    {isListening ? (
+                      <Square size={16} fill="currentColor" aria-hidden="true" />
+                    ) : (
+                      <Mic size={18} aria-hidden="true" />
+                    )}
+                    {isListening ? "음성 입력 멈추기" : "음성으로 입력하기"}
+                  </button>
+                  <button
+                    className="button button-primary"
+                    type="button"
+                    onClick={organizeParentStory}
+                    disabled={
+                      !parentStory.trim() ||
+                      aiState === "loading" ||
+                      aiState === "organizing"
+                    }
+                  >
+                    <Sparkles size={18} aria-hidden="true" />
+                    {aiState === "loading"
+                      ? "무료 AI 준비 중"
+                      : aiState === "organizing"
+                        ? "이야기 정리 중"
+                        : "AI로 항목 자동 채우기"}
+                  </button>
+                </div>
+                <div className="story-statuses">
+                  <p
+                    className="voice-status"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {voiceStatus}
+                  </p>
+                  <p
+                    className={`ai-status ai-status-${aiState}`}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {aiStatus}
+                  </p>
+                </div>
+              </div>
+              {(aiState === "loading" || aiState === "organizing") && (
+                <div className="ai-progress" aria-hidden="true">
+                  <span style={{ width: `${aiProgress}%` }} />
+                </div>
+              )}
+              <div className="local-ai-note" role="note">
+                <ShieldCheck size={18} aria-hidden="true" />
+                <p>
+                  AI 정리는 지원되는 브라우저의 기기 안에서 실행됩니다. 입력
+                  문장은 서버나 유료 API로 전송되지 않으며, API 키·결제 없이
+                  작동해 사용량 초과 과금이 없습니다. 처음 사용할 때는 무료
+                  AI 모델 파일을 내려받습니다. 음성 인식은 브라우저 기본
+                  기능을 사용하므로 브라우저 제공업체의 처리 방식이 적용될 수
+                  있지만, 진료한장은 별도 유료 음성 API를 호출하거나 음성을
+                  저장하지 않습니다.
+                </p>
+              </div>
+            </div>
+
+            <aside className="workspace-beta-card">
+              <div>
+                <p>
+                  이 서비스는 부모님이 더 쉽고 빠르게 사용하실 수 있도록
+                  앱으로 출시될 거예요.
+                  <br />
+                  <strong>지금 베타테스터를 모집하고 있어요.</strong>
+                </p>
+                <small>
+                  신청은 유료 가입이나 결제가 아니며, 참여 방법을 확인한 뒤
+                  결정해도 괜찮아요.
+                </small>
+              </div>
+              <BetaLink className="button button-secondary">
+                베타테스터 신청하기
+                <ArrowRight size={18} aria-hidden="true" />
+              </BetaLink>
+            </aside>
           </div>
 
           <div className="workspace-shell">
@@ -882,6 +1334,62 @@ function App() {
                 <p>인쇄 창에서 ‘PDF로 저장’을 선택할 수 있어요.</p>
               </div>
             </aside>
+          </div>
+        </section>
+
+        <section className="faq-section landing" aria-labelledby="faq-title">
+          <div className="section-heading">
+            <p className="section-kicker">FREQUENTLY ASKED</p>
+            <h2 id="faq-title">자주 묻는 질문</h2>
+          </div>
+          <div className="faq-list">
+            <details>
+              <summary>진료한장은 병을 진단해주는 서비스인가요?</summary>
+              <p>
+                아니요. 부모님이 병원에서 전해야 할 증상과 복용약, 궁금한
+                내용을 진료 전에 정리하도록 돕는 서비스이며 진단이나 처방을
+                제공하지 않습니다.
+              </p>
+            </details>
+            <details>
+              <summary>부모님이 직접 사용해야 하나요?</summary>
+              <p>
+                부모님이 직접 말씀하실 수도 있고, 자녀가 대신 입력하거나
+                함께 내용을 확인할 수도 있어요. 가족에게 편한 방법으로
+                사용하면 됩니다.
+              </p>
+            </details>
+            <details>
+              <summary>입력한 건강정보는 어디에 저장되나요?</summary>
+              <p>
+                현재 버전은 입력 내용을 서버에 저장하지 않습니다. 리포트와
+                AI 정리 모두 사용 중인 브라우저 안에서만 처리되며, 화면을
+                새로고침하면 입력 내용이 사라집니다.
+              </p>
+            </details>
+            <details>
+              <summary>AI 자동 정리는 유료인가요?</summary>
+              <p>
+                아니요. 별도 계정이나 API 키 없이 기기 안에서 실행되는 무료
+                AI를 사용하므로, 사용량이 늘어도 API 이용료가 청구되지
+                않습니다.
+              </p>
+            </details>
+            <details>
+              <summary>신청하면 꼭 베타테스트에 참여해야 하나요?</summary>
+              <p>
+                아니요. 신청 후 일정과 참여 방법을 먼저 확인하고 편하게
+                결정할 수 있습니다. 신청 자체는 유료 가입이나 결제가
+                아닙니다.
+              </p>
+            </details>
+            <details>
+              <summary>부모님과 함께 살지 않아도 사용할 수 있나요?</summary>
+              <p>
+                네. 부모님과 따로 살면서 전화나 카카오톡으로 진료를
+                챙기는 자녀가 함께 준비할 수 있도록 만들었습니다.
+              </p>
+            </details>
           </div>
         </section>
 

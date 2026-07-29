@@ -28,6 +28,51 @@ import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 const BETA_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSdv7-MYk37xpZkBIXTOJsZLTyOBeV0_8FSu5pX_eRMaf_SwUA/viewform?usp=header";
 const LOCAL_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+const storyResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    visitGoal: { type: "string" },
+    mainSymptom: { type: "string" },
+    symptomStart: { type: "string" },
+    occurrenceContext: { type: "string" },
+    occurrencePattern: { type: "string" },
+    worseningFactors: { type: "string" },
+    relievingFactors: { type: "string" },
+    beforeAfterContext: { type: "string" },
+    careReceived: { type: "string" },
+    medications: { type: "string" },
+    questions: { type: "string" },
+    materials: { type: "string" },
+    timeline: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          period: { type: "string" },
+          detail: { type: "string" },
+        },
+        required: ["period", "detail"],
+      },
+    },
+  },
+  required: [
+    "visitGoal",
+    "mainSymptom",
+    "symptomStart",
+    "occurrenceContext",
+    "occurrencePattern",
+    "worseningFactors",
+    "relievingFactors",
+    "beforeAfterContext",
+    "careReceived",
+    "medications",
+    "questions",
+    "materials",
+    "timeline",
+  ],
+};
 
 type FormData = {
   writtenDate: string;
@@ -160,6 +205,90 @@ const formatDate = (value: string) => {
   if (!value) return "";
   const [year, month, day] = value.split("-");
   return `${year}.${month}.${day}`;
+};
+
+const splitSentences = (value: string) =>
+  (value.match(/[^.!?\n]+[.!?]?/g) ?? [])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+const extractStoryWithRules = (story: string): ExtractedStory => {
+  const sentences = splitSentences(story);
+  const findSentence = (...patterns: RegExp[]) =>
+    sentences.find((sentence) =>
+      patterns.some((pattern) => pattern.test(sentence)),
+    ) ?? "";
+  const symptomSentence = findSentence(
+    /아프|통증|어지|기침|열이|붓|저리|숨이|답답|메스꺼|구토|설사|불편/,
+  );
+  const symptomStart =
+    story.match(
+      /(?:오늘|어제|그제|지난\s?(?:주|달|해|월요일|화요일|수요일|목요일|금요일|토요일|일요일)|며칠|몇\s?(?:일|주|달)|\d+\s?(?:일|주|개월|년)\s?전)(?:부터|쯤부터|경부터|전부터)?/,
+    )?.[0] ?? "";
+  const questionSentences = sentences
+    .filter((sentence) => /궁금|물어|확인|알고 싶|까요|인지/.test(sentence))
+    .slice(0, 3);
+  const mainSymptom = symptomSentence || sentences[0] || story.trim();
+  const occurrenceContext = findSentence(/할 때|했을 때|하면|하는 중|직후|도중/);
+  const occurrencePattern = findSentence(
+    /하루에|일주일에|주마다|번 정도|몇 번|계속|간헐|반복/,
+  );
+  const worseningFactors = findSentence(/심해|악화|더 아프|더 불편/);
+  const relievingFactors = findSentence(/괜찮|나아|완화|쉬면|줄어|덜 아프/);
+  const medications = findSentence(
+    /복용|드시|먹고 있|약을 먹|영양제|건강보조제|비타민/,
+  );
+  const materials = findSentence(/가져가|챙겨가|준비해 가|보여드리/);
+  const beforeAfterContext = findSentence(/전날|이후|그 뒤|전후|직전|직후/);
+  const careReceived = findSentence(/병원에서|의원에서|검사받|진료받|처방받|치료받/);
+  const result: ExtractedStory = {
+    visitGoal: questionSentences[0] ?? "",
+    mainSymptom,
+    symptomStart,
+    occurrenceContext,
+    occurrencePattern,
+    worseningFactors,
+    relievingFactors,
+    beforeAfterContext,
+    careReceived,
+    medications,
+    questions: questionSentences.join("\n"),
+    materials,
+  };
+
+  if (symptomStart && mainSymptom) {
+    result.timeline = [{ period: symptomStart, detail: mainSymptom }];
+  }
+
+  formFieldKeys.forEach((key) => {
+    const value = result[key];
+    if (typeof value === "string") {
+      result[key] = value.slice(0, formFieldLimits[key]);
+    }
+  });
+  return result;
+};
+
+const mergeExtractedStories = (
+  primary: ExtractedStory,
+  fallback: ExtractedStory,
+): ExtractedStory => {
+  const merged: ExtractedStory = {};
+  formFieldKeys.forEach((key) => {
+    const primaryValue = primary[key];
+    const fallbackValue = fallback[key];
+    merged[key] =
+      typeof primaryValue === "string" && primaryValue.trim()
+        ? primaryValue
+        : typeof fallbackValue === "string"
+          ? fallbackValue
+          : "";
+  });
+  merged.timeline =
+    primary.timeline && primary.timeline.length > 0
+      ? primary.timeline
+      : fallback.timeline;
+  return merged;
 };
 
 const readExtractedStory = (content: string): ExtractedStory => {
@@ -537,15 +666,53 @@ function App() {
     }
   };
 
+  const applyExtractedStory = (extracted: ExtractedStory) => {
+    setForm((current) => {
+      const next = { ...current };
+      formFieldKeys.forEach((key) => {
+        const value = extracted[key];
+        if (typeof value === "string" && value.trim()) {
+          next[key] = value;
+        }
+      });
+      return next;
+    });
+
+    if (extracted.timeline?.length) {
+      const nextEntries = extracted.timeline.map((entry) => ({
+        id: nextTimelineId.current++,
+        period: entry.period ?? "",
+        detail: entry.detail ?? "",
+      }));
+      setTimelineEntries(nextEntries);
+    }
+  };
+
   const organizeParentStory = async () => {
     if (!parentStory.trim() || aiState === "loading" || aiState === "organizing") {
       return;
     }
 
+    const fallback = extractStoryWithRules(parentStory.trim());
+    setAiState("loading");
+    setAiProgress(4);
+    setAiStatus("부모님의 이야기를 안전하게 펼쳐보고 있어요.");
+
     if (!("gpu" in navigator)) {
-      setAiState("error");
+      await new Promise<void>((resolve) =>
+        window.requestAnimationFrame(() => resolve()),
+      );
+      setAiState("organizing");
+      setAiProgress(82);
       setAiStatus(
-        "이 브라우저에서는 기기 내 AI를 사용할 수 없어요. 아래 항목을 직접 입력해 주세요.",
+        "이 기기에서 읽을 수 있는 문장부터 항목별로 나누고 있어요.",
+      );
+      applyExtractedStory(fallback);
+      await new Promise((resolve) => window.setTimeout(resolve, 850));
+      setAiProgress(100);
+      setAiState("done");
+      setAiStatus(
+        "기기 내 AI를 지원하지 않는 환경이라 문장 기준으로 먼저 채웠어요. 내용을 한 번 확인해 주세요.",
       );
       return;
     }
@@ -554,16 +721,14 @@ function App() {
       let engine = localAiRef.current;
 
       if (!engine) {
-        setAiState("loading");
-        setAiProgress(0);
         setAiStatus("기기 안에서 사용할 무료 AI를 준비하고 있어요.");
         const { CreateMLCEngine } = await import("@mlc-ai/web-llm");
         engine = await CreateMLCEngine(LOCAL_MODEL_ID, {
           initProgressCallback: (report) => {
-            setAiProgress(Math.round(report.progress * 100));
+            setAiProgress(5 + Math.round(report.progress * 73));
             setAiStatus(
               report.progress < 1
-                ? "처음 사용할 AI 모델을 이 기기에 준비하고 있어요."
+                ? "처음 한 번만, 무료 AI를 이 기기에 준비하고 있어요."
                 : "AI 준비를 마쳤어요.",
             );
           },
@@ -572,10 +737,10 @@ function App() {
       }
 
       setAiState("organizing");
-      setAiProgress(100);
+      setAiProgress(82);
       setAiStatus("부모님의 이야기에서 사실로 확인되는 내용만 정리하고 있어요.");
 
-      const response = await engine.chat.completions.create({
+      const completion = await engine.chat.completions.create({
         messages: [
           {
             role: "system",
@@ -592,45 +757,45 @@ function App() {
           },
         ],
         temperature: 0.1,
-        max_tokens: 900,
-        response_format: { type: "json_object" },
+        max_tokens: 760,
+        seed: 7,
+        stream: true,
+        response_format: {
+          type: "json_object",
+          schema: JSON.stringify(storyResponseSchema),
+        },
       });
 
-      const content = response.choices[0]?.message.content;
+      let content = "";
+      for await (const chunk of completion) {
+        const token = chunk.choices[0]?.delta?.content ?? "";
+        if (!token) continue;
+        content += token;
+        setAiProgress(Math.min(97, 83 + Math.round(content.length / 55)));
+      }
+
       if (!content) {
         throw new Error("정리 결과가 비어 있습니다.");
       }
 
-      const extracted = readExtractedStory(content);
-      setForm((current) => {
-        const next = { ...current };
-        formFieldKeys.forEach((key) => {
-          const value = extracted[key];
-          if (typeof value === "string" && value.trim()) {
-            next[key] = value;
-          }
-        });
-        return next;
-      });
+      const extracted = mergeExtractedStories(
+        readExtractedStory(content),
+        fallback,
+      );
+      applyExtractedStory(extracted);
 
-      if (extracted.timeline?.length) {
-        const nextEntries = extracted.timeline.map((entry) => ({
-          id: nextTimelineId.current++,
-          period: entry.period ?? "",
-          detail: entry.detail ?? "",
-        }));
-        setTimelineEntries(nextEntries);
-      }
-
+      setAiProgress(100);
       setAiState("done");
       setAiStatus(
         "정리가 끝났어요. 아래 항목과 리포트를 살펴보고 다른 부분은 직접 고쳐주세요.",
       );
     } catch (error) {
       console.error("Local AI organization failed:", error);
-      setAiState("error");
+      applyExtractedStory(fallback);
+      setAiProgress(100);
+      setAiState("done");
       setAiStatus(
-        "자동 정리를 마치지 못했어요. 잠시 후 다시 누르거나 아래 항목을 직접 입력해 주세요.",
+        "무료 AI 연결이 끝까지 이어지지 않아 문장 기준으로 먼저 채웠어요. 내용을 한 번 확인해 주세요.",
       );
     }
   };
@@ -797,6 +962,53 @@ function App() {
           </a>
         </nav>
       </header>
+
+      {(aiState === "loading" || aiState === "organizing") && (
+        <div
+          className="ai-making-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ai-making-title"
+          aria-describedby="ai-making-description"
+        >
+          <div className="ai-making-card">
+            <div className="ai-flight-scene" aria-hidden="true">
+              <span className="ai-flight-orbit ai-flight-orbit-one" />
+              <span className="ai-flight-orbit ai-flight-orbit-two" />
+              <span className="ai-flight-cloud ai-flight-cloud-one" />
+              <span className="ai-flight-cloud ai-flight-cloud-two" />
+              <span className="ai-flight-trail" />
+              <img
+                src="/jinryo-hanjang-symbol-cropped.png"
+                alt=""
+                width="112"
+                height="86"
+              />
+            </div>
+            <p className="section-kicker">MAKING YOUR PAGE</p>
+            <h2 id="ai-making-title">
+              부모님의 이야기를
+              <br />
+              한 장으로 옮기고 있어요.
+            </h2>
+            <p id="ai-making-description">{aiStatus}</p>
+            <div
+              className="ai-making-progress"
+              role="progressbar"
+              aria-label="진료한장 자동 정리 진행률"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={aiProgress}
+            >
+              <span style={{ width: `${aiProgress}%` }} />
+            </div>
+            <small>
+              적어주신 문장은 외부 AI 서버로 보내지 않고 이 기기 안에서만
+              살펴봐요.
+            </small>
+          </div>
+        </div>
+      )}
 
       <main>
         <section className="hero-composed landing" id="top">
@@ -1056,7 +1268,8 @@ function App() {
                 <li>입력한 내용은 서버에 저장하지 않아요.</li>
                 <li>새로고침하거나 창을 닫으면 입력 내용이 사라져요.</li>
                 <li>
-                  AI 정리는 기기 안에서 진행하고, 진료한장 서버로 보내지 않아요.
+                  이름을 적지 않아도 증상과 복용약은 건강정보일 수 있어요. AI
+                  정리는 기기 안에서 진행하고 외부 무료 AI로 보내지 않아요.
                 </li>
                 <li>
                   음성 입력은 브라우저 기본 기능을 사용해요. 말하기 전에는 사용
@@ -1102,8 +1315,8 @@ function App() {
               않아요.
             </p>
             <p className="workspace-future-copy">
-              출시되는 서비스는 일상 속의 데이터를 모아서 병원 가기 전에
-              바로 생성해줄 거예요.
+              출시되는 서비스는 지금처럼 수기로 입력하지 않고, 일상 속의
+              데이터를 모아서 병원 가기 전에 바로 생성해줄 거예요.
             </p>
           </div>
 
@@ -1192,12 +1405,13 @@ function App() {
                 <ShieldCheck size={18} aria-hidden="true" />
                 <p>
                   AI 정리는 지원되는 브라우저의 기기 안에서 실행돼요. 입력
-                  문장은 서버나 유료 API로 보내지 않고, API 키나 결제도
-                  필요하지 않아 사용량 초과 과금이 없어요. 처음 사용할 때는
+                  문장은 외부 무료 LLM이나 유료 API로 보내지 않고, 공개 모델이
+                  이 기기 안에서 토큰 단위로 내용을 정리해요. API 키나 결제가
+                  필요하지 않아 사용량 초과 과금도 없어요. 처음 사용할 때는
                   무료 AI 모델 파일을 기기에 내려받아요. 음성 인식은 브라우저
-                  기본 기능을 사용해 브라우저 제공업체의 처리 방식이 적용될
-                  수 있지만, 진료한장은 별도 유료 음성 API를 호출하거나
-                  음성을 저장하지 않아요.
+                  기본 기능을 사용해 브라우저 제공업체의 처리 방식이 적용될 수
+                  있지만, 진료한장은 별도 유료 음성 API를 호출하거나 음성을
+                  저장하지 않아요.
                 </p>
               </div>
             </div>

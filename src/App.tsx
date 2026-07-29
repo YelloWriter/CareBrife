@@ -24,10 +24,44 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { MLCEngineInterface } from "@mlc-ai/web-llm";
+import {
+  isInterfaceTextVariant,
+  languageOptions,
+  normalizeInterfaceText,
+  pageMetadata,
+  translateInterfaceText,
+} from "./i18n";
+import type { Language } from "./i18n";
 
 const BETA_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSdv7-MYk37xpZkBIXTOJsZLTyOBeV0_8FSu5pX_eRMaf_SwUA/viewform?usp=header";
 const LOCAL_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+const speechLanguage: Record<Language, string> = {
+  ko: "ko-KR",
+  en: "en-US",
+  ja: "ja-JP",
+  zh: "zh-CN",
+};
+
+const getLanguageFromLocation = (): Language => {
+  const queryLanguage = new URLSearchParams(window.location.search).get("lang");
+  if (
+    queryLanguage === "ko" ||
+    queryLanguage === "en" ||
+    queryLanguage === "ja" ||
+    queryLanguage === "zh"
+  ) {
+    return queryLanguage;
+  }
+
+  const pathParts = window.location.pathname.split("/").filter(Boolean);
+  const pathLanguage = pathParts[pathParts.length - 1];
+  return pathLanguage === "en" ||
+    pathLanguage === "ja" ||
+    pathLanguage === "zh"
+    ? pathLanguage
+    : "ko";
+};
 const storyResponseSchema = {
   type: "object",
   additionalProperties: false,
@@ -421,6 +455,7 @@ function BetaLink({
 }
 
 function App() {
+  const [language, setLanguage] = useState<Language>(getLanguageFromLocation);
   const [form, setForm] = useState<FormData>(initialForm);
   const [parentStory, setParentStory] = useState("");
   const [aiState, setAiState] = useState<AiState>("idle");
@@ -440,6 +475,141 @@ function App() {
   const voiceRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const nextTimelineId = useRef(2);
   const reportRef = useRef<HTMLElement>(null);
+  const appRef = useRef<HTMLDivElement>(null);
+  const originalTextNodesRef = useRef(new WeakMap<Text, string>());
+  const originalAttributesRef = useRef(
+    new WeakMap<Element, Record<string, string>>(),
+  );
+
+  const changeLanguage = (nextLanguage: Language) => {
+    setLanguage(nextLanguage);
+
+    const nextUrl = new URL(window.location.href);
+    if (nextUrl.protocol === "file:") {
+      nextUrl.searchParams.set("lang", nextLanguage);
+    } else {
+      nextUrl.pathname = nextLanguage === "ko" ? "/" : `/${nextLanguage}`;
+      nextUrl.searchParams.delete("lang");
+    }
+    window.history.pushState({ language: nextLanguage }, "", nextUrl);
+  };
+
+  useEffect(() => {
+    const handleHistoryChange = () => setLanguage(getLanguageFromLocation());
+    window.addEventListener("popstate", handleHistoryChange);
+    return () => window.removeEventListener("popstate", handleHistoryChange);
+  }, []);
+
+  useEffect(() => {
+    const root = appRef.current;
+    if (!root) return;
+
+    const htmlLanguage =
+      languageOptions.find((option) => option.code === language)?.htmlLang ??
+      "ko";
+    document.documentElement.lang = htmlLanguage;
+    document.title = pageMetadata[language].title;
+    document
+      .querySelector<HTMLMetaElement>('meta[name="description"]')
+      ?.setAttribute("content", pageMetadata[language].description);
+
+    let animationFrame = 0;
+    const translatePage = () => {
+      animationFrame = 0;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let currentNode = walker.nextNode();
+
+      while (currentNode) {
+        const textNode = currentNode as Text;
+        const parent = textNode.parentElement;
+        if (
+          parent &&
+          !parent.closest("[data-i18n-skip]") &&
+          !["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName)
+        ) {
+          const currentValue = textNode.nodeValue ?? "";
+          let originalValue = originalTextNodesRef.current.get(textNode);
+          if (
+            originalValue === undefined ||
+            !isInterfaceTextVariant(originalValue, currentValue)
+          ) {
+            originalValue = currentValue;
+            originalTextNodesRef.current.set(textNode, originalValue);
+          }
+
+          const normalized = normalizeInterfaceText(originalValue);
+          if (normalized) {
+            const translated =
+              language === "ko"
+                ? originalValue
+                : translateInterfaceText(normalized, language);
+            const leading = originalValue.match(/^\s*/)?.[0] ?? "";
+            const trailing = originalValue.match(/\s*$/)?.[0] ?? "";
+            const nextValue =
+              language === "ko"
+                ? originalValue
+                : `${leading}${translated}${trailing}`;
+            if (textNode.nodeValue !== nextValue) {
+              textNode.nodeValue = nextValue;
+            }
+          }
+        }
+        currentNode = walker.nextNode();
+      }
+
+      root
+        .querySelectorAll<HTMLElement>(
+          "[placeholder], [title], [aria-label]",
+        )
+        .forEach((element) => {
+          if (element.closest("[data-i18n-skip]")) return;
+          const stored =
+            originalAttributesRef.current.get(element) ??
+            ({} as Record<string, string>);
+
+          ["placeholder", "title", "aria-label"].forEach((attribute) => {
+            const currentValue = element.getAttribute(attribute);
+            if (!currentValue) return;
+            if (
+              stored[attribute] === undefined ||
+              !isInterfaceTextVariant(stored[attribute], currentValue)
+            ) {
+              stored[attribute] = currentValue;
+            }
+            const originalValue = stored[attribute];
+            const translated =
+              language === "ko"
+                ? originalValue
+                : translateInterfaceText(originalValue, language);
+            if (currentValue !== translated) {
+              element.setAttribute(attribute, translated);
+            }
+          });
+
+          originalAttributesRef.current.set(element, stored);
+        });
+    };
+
+    const scheduleTranslation = () => {
+      if (animationFrame) return;
+      animationFrame = window.requestAnimationFrame(translatePage);
+    };
+
+    translatePage();
+    const observer = new MutationObserver(scheduleTranslation);
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["placeholder", "title", "aria-label"],
+    });
+
+    return () => {
+      observer.disconnect();
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    };
+  }, [language]);
 
   useEffect(() => {
     const fitReportToPage = () => {
@@ -482,7 +652,7 @@ function App() {
           ".value-grid > *",
           ".value-note",
           ".step-grid > *",
-          ".steps-caption",
+          ".care-flow",
           ".privacy-heading",
           ".privacy-card-grid > *",
           ".privacy-bottom",
@@ -613,7 +783,7 @@ function App() {
     const storyBeforeListening = parentStory.trim();
     let finalTranscript = "";
 
-    recognition.lang = "ko-KR";
+    recognition.lang = speechLanguage[language];
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onstart = () => {
@@ -744,7 +914,7 @@ function App() {
         messages: [
           {
             role: "system",
-            content: `당신은 진료 전 정보 정리 도우미입니다. 사용자가 한국어로 적은 이야기에서 명시된 사실만 추출하세요.
+            content: `당신은 진료 전 정보 정리 도우미입니다. 사용자가 한국어, 영어, 일본어 또는 중국어로 적은 이야기에서 명시된 사실만 추출하고, 사용자가 쓴 언어로 정리하세요.
 진단, 처방, 질병 추정, 의학적 조언을 절대 추가하지 마세요. 확실하지 않거나 적혀 있지 않은 내용은 빈 문자열로 두세요.
 질문과 가져갈 자료, 약은 각각 한 줄에 하나씩 정리하세요. 의료진께 확인할 질문은 최대 3개만 정리하세요.
 같은 시기의 사건은 timeline의 한 항목에 줄바꿈으로 묶으세요.
@@ -946,7 +1116,7 @@ function App() {
   )}&body=${encodeURIComponent(reportText)}`;
 
   return (
-    <div className="app">
+    <div className={`app app-language-${language}`} ref={appRef}>
       <div className="scroll-progress" aria-hidden="true">
         <span />
       </div>
@@ -1025,17 +1195,73 @@ function App() {
           </div>
           <div className="hero-composed-inner">
             <div className="hero-composed-copy">
-              <div className="hero-composed-brand">
-                <Brand />
-              </div>
-              <h1>
-                <span>부모님 진료,</span>
-                <span>
-                  <em>함께</em> 못 가도
-                </span>
-                <span>
-                  준비는 <em>함께</em>할 수 있어요.
-                </span>
+              <nav
+                className="language-switcher"
+                aria-label="언어 선택"
+                data-i18n-skip
+              >
+                {languageOptions.map((option, index) => (
+                  <div className="language-option" key={option.code}>
+                    <button
+                      type="button"
+                      className={language === option.code ? "is-active" : ""}
+                      onClick={() => changeLanguage(option.code)}
+                      aria-pressed={language === option.code}
+                      lang={option.htmlLang}
+                    >
+                      {option.label}
+                    </button>
+                    {index < languageOptions.length - 1 && (
+                      <span aria-hidden="true">/</span>
+                    )}
+                  </div>
+                ))}
+              </nav>
+              <h1 data-i18n-skip>
+                {language === "ko" && (
+                  <>
+                    <span>부모님 진료,</span>
+                    <span>
+                      <em>함께</em> 못 가도
+                    </span>
+                    <span>
+                      준비는 <em>함께</em>할 수 있어요.
+                    </span>
+                  </>
+                )}
+                {language === "en" && (
+                  <>
+                    <span>Even when you cannot</span>
+                    <span>
+                      <em>be there</em> in person,
+                    </span>
+                    <span>
+                      you can <em>prepare together.</em>
+                    </span>
+                  </>
+                )}
+                {language === "ja" && (
+                  <>
+                    <span>ご両親の診療に、</span>
+                    <span>
+                      <em>一緒に</em>行けなくても
+                    </span>
+                    <span>
+                      準備は<em>一緒に</em>できます。
+                    </span>
+                  </>
+                )}
+                {language === "zh" && (
+                  <>
+                    <span>父母就诊时，</span>
+                    <span>
+                      即使不能<em>陪在身边，</em>
+                    </span>
+                    <span>
+                      也能<em>一起做好准备。</em>
+                    </span>
+                  </>
+                )}
               </h1>
               <p className="hero-composed-tagline">
                 부모님의 진료를 준비하는 가장 다정한 한 장
@@ -1098,7 +1324,9 @@ function App() {
           </div>
           <div className="empathy-grid">
             {empathyQuotes.map((quote) => (
-              <blockquote key={quote}>“{quote}”</blockquote>
+              <blockquote key={quote} data-i18n-skip>
+                “{translateInterfaceText(quote, language)}”
+              </blockquote>
             ))}
           </div>
           <div className="empathy-summary">
@@ -1245,9 +1473,77 @@ function App() {
               <p>완성된 진료한장을 가족에게 보내거나 인쇄해 챙겨가요.</p>
             </article>
           </div>
-          <p className="steps-caption">
-            말하기 → 함께 확인하기 → 한 장으로 정리하기 → 병원에서 보여주기
-          </p>
+          <div
+            className="care-flow"
+            role="img"
+            aria-label="말하기, 함께 확인하기, 한 장으로 정리하기, 병원에서 보여주기 흐름"
+          >
+            <div className="care-flow-step">
+              <div className="care-character care-character-talk" aria-hidden="true">
+                <span className="character-head">
+                  <i />
+                  <i />
+                  <b />
+                </span>
+                <span className="character-body" />
+                <span className="character-prop">
+                  <Mic size={18} />
+                </span>
+              </div>
+              <strong>말하기</strong>
+            </div>
+            <span className="care-flow-arrow" aria-hidden="true">
+              <ArrowRight size={22} />
+            </span>
+            <div className="care-flow-step">
+              <div className="care-character care-character-review" aria-hidden="true">
+                <span className="character-head">
+                  <i />
+                  <i />
+                  <b />
+                </span>
+                <span className="character-body" />
+                <span className="character-prop">
+                  <UsersRound size={19} />
+                </span>
+              </div>
+              <strong>확인하기</strong>
+            </div>
+            <span className="care-flow-arrow" aria-hidden="true">
+              <ArrowRight size={22} />
+            </span>
+            <div className="care-flow-step">
+              <div className="care-character care-character-page" aria-hidden="true">
+                <span className="character-head">
+                  <i />
+                  <i />
+                  <b />
+                </span>
+                <span className="character-body" />
+                <span className="character-prop">
+                  <FileCheck2 size={19} />
+                </span>
+              </div>
+              <strong>한 장 정리</strong>
+            </div>
+            <span className="care-flow-arrow" aria-hidden="true">
+              <ArrowRight size={22} />
+            </span>
+            <div className="care-flow-step">
+              <div className="care-character care-character-clinic" aria-hidden="true">
+                <span className="character-head">
+                  <i />
+                  <i />
+                  <b />
+                </span>
+                <span className="character-body" />
+                <span className="character-prop">
+                  <Printer size={19} />
+                </span>
+              </div>
+              <strong>병원에서 보여주기</strong>
+            </div>
+          </div>
         </section>
 
         <section className="privacy-section landing" id="privacy">

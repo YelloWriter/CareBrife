@@ -11,11 +11,13 @@ import {
   Image as ImageIcon,
   ListChecks,
   LockKeyhole,
+  Mail,
   Mic,
   Minus,
   PhoneCall,
   Printer,
   RefreshCcw,
+  Share2,
   ShieldCheck,
   Sparkles,
   Square,
@@ -301,6 +303,7 @@ function App() {
   const [voiceStatus, setVoiceStatus] = useState(
     "마이크 버튼을 누르고 한국어로 편하게 말씀해 주세요.",
   );
+  const [shareStatus, setShareStatus] = useState("");
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([
     { id: 1, period: "", detail: "" },
   ]);
@@ -332,6 +335,96 @@ function App() {
       voiceRecognitionRef.current?.abort();
       window.removeEventListener("beforeprint", fitReportToPage);
       window.removeEventListener("afterprint", resetReportScale);
+    };
+  }, []);
+
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const revealTargets = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        [
+          ".section-heading",
+          ".empathy-grid > *",
+          ".empathy-summary",
+          ".methods-grid > *",
+          ".methods-summary",
+          ".value-grid > *",
+          ".value-note",
+          ".step-grid > *",
+          ".steps-caption",
+          ".privacy-heading",
+          ".privacy-card-grid > *",
+          ".privacy-bottom",
+          ".workspace-heading",
+          ".story-input-card",
+          ".workspace-beta-card",
+          ".form-card",
+          ".preview-pane",
+          ".beta-fit-list > *",
+          ".beta-fit-note",
+          ".beta-process-grid > *",
+          ".beta-process-note",
+          ".beta-section > *",
+          ".faq-list > *",
+        ].join(","),
+      ),
+    );
+
+    revealTargets.forEach((target, index) => {
+      target.classList.add("scroll-reveal");
+      target.style.setProperty("--reveal-delay", `${(index % 5) * 65}ms`);
+    });
+
+    if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+      revealTargets.forEach((target) => target.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -44px" },
+    );
+
+    revealTargets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const progress = document.querySelector<HTMLElement>(
+      ".scroll-progress > span",
+    );
+    if (!progress) return;
+
+    let frame = 0;
+    const updateProgress = () => {
+      frame = 0;
+      const scrollableHeight =
+        document.documentElement.scrollHeight - window.innerHeight;
+      const ratio =
+        scrollableHeight > 0
+          ? Math.min(1, Math.max(0, window.scrollY / scrollableHeight))
+          : 0;
+      progress.style.transform = `scaleX(${ratio})`;
+    };
+    const requestUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateProgress);
+    };
+
+    updateProgress();
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
     };
   }, []);
 
@@ -606,8 +699,92 @@ function App() {
     questions.length > 0 ||
     materials.length > 0;
 
+  const reportText = useMemo(() => {
+    const lines = ["진료한장"];
+    if (form.writtenDate) {
+      lines.push(`작성일: ${formatDate(form.writtenDate)}`);
+    }
+
+    if (timelineRows.length > 0) {
+      lines.push("", "[진료 타임라인]");
+      timelineRows.forEach((row) => {
+        lines.push(`${row.period}: ${row.details.join(" / ")}`);
+      });
+    }
+
+    const addSection = (title: string, values: string[]) => {
+      if (values.length > 0) {
+        lines.push("", `[${title}]`, ...values);
+      }
+    };
+
+    addSection(
+      "오늘 확인받고 싶은 내용",
+      form.visitGoal.trim() ? [form.visitGoal.trim()] : [],
+    );
+    addSection("현재 가장 불편한 증상", symptomDetails);
+    addSection(
+      "증상 발생 전후 상황",
+      form.beforeAfterContext.trim() ? [form.beforeAfterContext.trim()] : [],
+    );
+    addSection(
+      "지금까지 받은 진료",
+      form.careReceived.trim() ? [form.careReceived.trim()] : [],
+    );
+    addSection("복용 중인 약과 건강보조제", medications);
+    addSection(
+      "의료진께 확인할 질문",
+      questions.map((question) => `□ ${question}`),
+    );
+    addSection(
+      "진료 시 가져갈 자료",
+      materials.map((material) => `□ ${material}`),
+    );
+    lines.push(
+      "",
+      "이 내용은 진료 전에 정보를 정리한 자료예요. 진단이나 처방을 대신하지 않아요.",
+    );
+    return lines.join("\n");
+  }, [form, materials, medications, questions, symptomDetails, timelineRows]);
+
+  const shareReport = async () => {
+    if (!hasReportContent) {
+      setShareStatus("먼저 부모님의 이야기를 적어주세요.");
+      return;
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "진료한장",
+          text: reportText,
+        });
+        setShareStatus("공유할 앱을 선택했어요.");
+        return;
+      }
+
+      await navigator.clipboard.writeText(reportText);
+      setShareStatus("공유할 내용을 복사했어요. 원하는 앱에 붙여 넣어주세요.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setShareStatus("");
+        return;
+      }
+      setShareStatus(
+        "공유 창을 열지 못했어요. PDF로 저장한 뒤 보내셔도 괜찮아요.",
+      );
+    }
+  };
+
+  const mailtoUrl = `mailto:?subject=${encodeURIComponent(
+    "진료한장",
+  )}&body=${encodeURIComponent(reportText)}`;
+
   return (
     <div className="app">
+      <div className="scroll-progress" aria-hidden="true">
+        <span />
+      </div>
       <header className="site-header">
         <a className="brand-link" href="#top" aria-label="진료한장 홈">
           <Brand compact />
@@ -622,28 +799,38 @@ function App() {
       </header>
 
       <main>
-        <section className="hero landing" id="top">
-          <div className="hero-glow hero-glow-one" aria-hidden="true" />
-          <div className="hero-glow hero-glow-two" aria-hidden="true" />
-          <div className="hero-content">
-            <p className="eyebrow">
-              <Heart size={16} strokeWidth={2.2} aria-hidden="true" />
-              떨어져 있어도, 진료 준비는 함께
-            </p>
-            <h1>
-              부모님 진료,
-              <br />
-              <span className="hero-accent">함께</span> 못 가도
-              <br />
-              준비는 <span className="hero-accent">함께</span>할 수 있어요.
-            </h1>
-            <p className="hero-brand-line">
-              부모님의 진료를 준비하는 가장 다정한 한 장, 진료한장
-            </p>
-            <p className="hero-description">
-              부모님의 증상, 복용약, 최근 변화와 궁금한 점을
-              <br className="desktop-break" /> 병원에서 보여줄 한 장으로
-              정리합니다.
+        <section className="hero-title-section landing" id="top">
+          <h1 className="visually-hidden">
+            부모님 진료, 함께 못 가도 준비는 함께할 수 있어요.
+          </h1>
+          <picture className="hero-title-picture">
+            <source
+              media="(max-width: 680px)"
+              srcSet="/jinryo-hero-title-mobile.png"
+            />
+            <img
+              src="/jinryo-hero-title.png"
+              alt=""
+              width="1729"
+              height="910"
+              fetchPriority="high"
+            />
+          </picture>
+          <div className="leaf-shadow leaf-shadow-top" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="leaf-shadow leaf-shadow-bottom" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="hero-title-actions">
+            <p>
+              부모님의 증상, 복용약, 최근 변화와 궁금한 점을 병원에서 보여줄
+              한 장으로 정리해드려요.
             </p>
             <div className="hero-actions">
               <a className="button button-primary" href="#create-report">
@@ -658,66 +845,8 @@ function App() {
             <div className="hero-notice">
               <ShieldCheck size={18} aria-hidden="true" />
               <span>
-                진단·처방이 아닌, 진료 전에 정보를 정리하는 서비스입니다.
+                진단이나 처방 대신, 진료 전에 필요한 정보를 함께 정리해요.
               </span>
-            </div>
-          </div>
-
-          <div className="hero-visual" aria-label="진료한장 리포트 예시">
-            <div className="preview-orbit orbit-one" aria-hidden="true" />
-            <div className="preview-orbit orbit-two" aria-hidden="true" />
-            <div className="sample-sheet">
-              <div className="sample-header">
-                <Brand compact />
-                <span>작성일 2026.07.29</span>
-              </div>
-              <div className="sample-title-row">
-                <div>
-                  <span className="sample-kicker">오늘의 진료 준비</span>
-                  <strong>말하지 못한 정보가 없도록</strong>
-                </div>
-                <div className="sample-heart">
-                  <img
-                    src="/jinryo-hanjang-symbol-cropped.png"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-              <div className="sample-timeline">
-                <span>시기</span>
-                <span>부모님의 변화</span>
-                <strong>최근</strong>
-                <p>불편한 증상과 달라진 점</p>
-                <strong>현재</strong>
-                <p>복용 중인 약과 궁금한 점</p>
-              </div>
-              <div className="sample-cards">
-                <div>
-                  <span className="sample-icon">01</span>
-                  <p>가장 불편한 증상</p>
-                </div>
-                <div>
-                  <span className="sample-icon">02</span>
-                  <p>복용약과 건강보조제</p>
-                </div>
-              </div>
-              <div className="sample-checks">
-                <span>
-                  <Check size={14} aria-hidden="true" /> 의료진께 확인할 질문
-                </span>
-                <span>
-                  <Check size={14} aria-hidden="true" /> 진료 시 가져갈 자료
-                </span>
-              </div>
-            </div>
-            <div className="floating-note floating-note-top">
-              <Sparkles size={16} aria-hidden="true" />
-              입력하면 바로 미리보기
-            </div>
-            <div className="floating-note floating-note-bottom">
-              <FileCheck2 size={16} aria-hidden="true" />
-              A4 한 장으로 저장
             </div>
           </div>
         </section>
@@ -800,7 +929,7 @@ function App() {
             <h2 id="value-title">
               진료한장은 부모님의 이야기를
               <br />
-              진료에 쓸 수 있는 <span>한 장</span>으로 정리합니다.
+              진료에 쓸 수 있는 <span>한 장</span>으로 정리해요.
             </h2>
           </div>
           <div className="value-grid">
@@ -811,7 +940,7 @@ function App() {
               <h3>편하게 이야기하기</h3>
               <p>
                 부모님이 직접 불편한 점을 말씀하시거나, 자녀가 대신 입력할 수
-                있어요. 꼭 정확한 문장으로 말하지 않아도 괜찮습니다.
+                있어요. 꼭 정확한 문장으로 말하지 않아도 괜찮아요.
               </p>
             </article>
             <article>
@@ -885,23 +1014,56 @@ function App() {
           </p>
         </section>
 
-        <section className="privacy-band landing" id="privacy">
-          <div className="privacy-icon">
-            <LockKeyhole size={26} aria-hidden="true" />
+        <section className="privacy-section landing" id="privacy">
+          <div className="privacy-heading">
+            <div className="privacy-icon">
+              <LockKeyhole size={26} aria-hidden="true" />
+            </div>
+            <div>
+              <p className="section-kicker">PRIVATE BY DESIGN</p>
+              <h2>건강정보를 다루는 방식부터 다정하고 분명하게 알려드려요.</h2>
+            </div>
           </div>
-          <div>
-            <p className="section-kicker">PRIVATE BY DESIGN</p>
-            <h2>적어주신 건강정보는 이 기기 안에서만 머물러요.</h2>
+          <div className="privacy-card-grid">
+            <article>
+              <span>지금 이용하는 체험판</span>
+              <h3>적어주신 내용은 이 브라우저 안에서만 머물러요.</h3>
+              <ul>
+                <li>입력한 내용은 서버에 저장하지 않아요.</li>
+                <li>새로고침하거나 창을 닫으면 입력 내용이 사라져요.</li>
+                <li>
+                  AI 정리는 기기 안에서 진행하고, 진료한장 서버로 보내지 않아요.
+                </li>
+                <li>
+                  음성 입력은 브라우저 기본 기능을 사용해요. 말하기 전에는 사용
+                  중인 브라우저의 개인정보 안내도 함께 확인해 주세요.
+                </li>
+              </ul>
+            </article>
+            <article>
+              <span>앞으로 출시할 정식 서비스</span>
+              <h3>일상 데이터를 모으기 전에 안전한 기준부터 준비할게요.</h3>
+              <ul>
+                <li>어떤 정보를 왜 모으는지 먼저 이해하기 쉽게 알려드려요.</li>
+                <li>보관 기간과 삭제 방법, 가족과 공유하는 범위를 정해둘게요.</li>
+                <li>정보를 볼 수 있는 사람과 접근 권한을 꼼꼼하게 나눌게요.</li>
+                <li>
+                  법률 검토를 마친 개인정보 처리방침을 출시 전에 공개할게요.
+                </li>
+              </ul>
+            </article>
+          </div>
+          <div className="privacy-bottom">
             <p>
-              입력한 정보는 사용자의 브라우저에서 리포트 미리보기를 만들기
-              위한 용도로만 사용되며, 현재 버전에서는 서버에 저장되지
-              않습니다.
+              정식 서비스의 저장·공유 방식은 지금 체험판과 달라질 수 있어요.
+              민감한 건강정보를 입력하기 전에는 그때 공개되는 개인정보
+              처리방식을 꼭 확인해 주세요.
             </p>
+            <a href="#create-report">
+              안내 확인하고 체험판 시작하기
+              <ChevronRight size={18} aria-hidden="true" />
+            </a>
           </div>
-          <a href="#create-report">
-            개인정보 안내 확인하고 시작하기
-            <ChevronRight size={18} aria-hidden="true" />
-          </a>
         </section>
 
         <section className="workspace-section" id="create-report">
@@ -913,7 +1075,7 @@ function App() {
             <h3>부모님의 진료 이야기를 한 장에 담아보세요.</h3>
             <p className="workspace-instruction">
               아는 만큼만 적어도 괜찮아요. 비워둔 항목은 리포트에 나타나지
-              않습니다.
+              않아요.
             </p>
             <p className="workspace-future-copy">
               출시되는 서비스는 일상 속의 데이터를 모아서 병원 가기 전에
@@ -1005,13 +1167,13 @@ function App() {
               <div className="local-ai-note" role="note">
                 <ShieldCheck size={18} aria-hidden="true" />
                 <p>
-                  AI 정리는 지원되는 브라우저의 기기 안에서 실행됩니다. 입력
-                  문장은 서버나 유료 API로 전송되지 않으며, API 키·결제 없이
-                  작동해 사용량 초과 과금이 없습니다. 처음 사용할 때는 무료
-                  AI 모델 파일을 내려받습니다. 음성 인식은 브라우저 기본
-                  기능을 사용하므로 브라우저 제공업체의 처리 방식이 적용될 수
-                  있지만, 진료한장은 별도 유료 음성 API를 호출하거나 음성을
-                  저장하지 않습니다.
+                  AI 정리는 지원되는 브라우저의 기기 안에서 실행돼요. 입력
+                  문장은 서버나 유료 API로 보내지 않고, API 키나 결제도
+                  필요하지 않아 사용량 초과 과금이 없어요. 처음 사용할 때는
+                  무료 AI 모델 파일을 기기에 내려받아요. 음성 인식은 브라우저
+                  기본 기능을 사용해 브라우저 제공업체의 처리 방식이 적용될
+                  수 있지만, 진료한장은 별도 유료 음성 API를 호출하거나
+                  음성을 저장하지 않아요.
                 </p>
               </div>
             </div>
@@ -1046,7 +1208,7 @@ function App() {
                 <div>
                   <strong>입력 내용은 서버에 저장되지 않아요.</strong>
                   <p>
-                    이 브라우저에서 미리보기를 만드는 동안만 사용됩니다.
+                    이 브라우저에서 미리보기를 만드는 동안만 사용돼요.
                     민감한 건강정보를 입력하기 전 개인정보 처리 방식을 반드시
                     확인해 주세요.
                   </p>
@@ -1199,8 +1361,8 @@ function App() {
                   <span>05</span> 진료 타임라인
                 </legend>
                 <p className="legend-description">
-                  증상 시작 시점은 자동으로 반영됩니다. 그 밖의 변화나 진료를
-                  시기별로 더해보세요. 같은 시기는 한 행으로 묶입니다.
+                  증상 시작 시점은 자동으로 반영돼요. 그 밖의 변화나 진료를
+                  시기별로 더해보세요. 같은 시기는 한 행으로 묶여요.
                 </p>
                 <div className="timeline-entry-list">
                   {timelineEntries.map((entry, index) => (
@@ -1255,8 +1417,8 @@ function App() {
               <div className="medical-disclaimer">
                 <strong>꼭 확인해 주세요</strong>
                 <p>
-                  본 서비스는 진단이나 처방을 제공하지 않습니다. 작성한
-                  리포트는 진료 전 정보 정리를 돕기 위한 자료이며, 의학적
+                  본 서비스는 진단이나 처방을 제공하지 않아요. 작성한
+                  리포트는 진료 전 정보 정리를 돕기 위한 자료예요. 의학적
                   판단은 반드시 의료진과 상의해 주세요.
                 </p>
               </div>
@@ -1268,7 +1430,7 @@ function App() {
                   <span className="live-dot" aria-hidden="true" />
                   실시간 미리보기
                 </div>
-                <p>입력한 내용만 한 장에 표시됩니다.</p>
+                <p>입력한 내용만 한 장에 보여요.</p>
               </div>
 
               <div className="report-frame">
@@ -1412,7 +1574,7 @@ function App() {
                       </div>
                       <strong>부모님의 이야기를 기다리고 있어요.</strong>
                       <p>
-                        왼쪽에서 내용을 입력하면 이곳에 한 장으로 정리됩니다.
+                        왼쪽에서 내용을 입력하면 이곳에 한 장으로 정리돼요.
                       </p>
                     </div>
                   )}
@@ -1420,7 +1582,7 @@ function App() {
                   <footer className="report-footer">
                     <p>
                       본 자료는 진료 전 정보 정리를 위한 것으로, 진단이나
-                      처방을 제공하지 않습니다.
+                      처방을 제공하지 않아요.
                     </p>
                     <span>부모님의 진료를 준비하는 가장 다정한 한 장</span>
                   </footer>
@@ -1436,7 +1598,38 @@ function App() {
                   <Printer size={19} aria-hidden="true" />
                   PDF로 저장하기 · 인쇄하기
                 </button>
-                <p>인쇄 창에서 ‘PDF로 저장’을 선택할 수 있어요.</p>
+                <div className="share-actions">
+                  <button
+                    className="button share-button"
+                    type="button"
+                    onClick={shareReport}
+                  >
+                    <Share2 size={18} aria-hidden="true" />
+                    공유하기
+                  </button>
+                  <a
+                    className="button mail-button"
+                    href={hasReportContent ? mailtoUrl : "#create-report"}
+                    aria-disabled={!hasReportContent}
+                    onClick={(event) => {
+                      if (hasReportContent) return;
+                      event.preventDefault();
+                      setShareStatus("먼저 부모님의 이야기를 적어주세요.");
+                    }}
+                  >
+                    <Mail size={18} aria-hidden="true" />
+                    메일로 보내기
+                  </a>
+                </div>
+                <p>
+                  인쇄 창에서 PDF로 저장할 수 있어요. 공유 버튼을 누르면
+                  리포트 내용이 선택한 앱이나 메일 앱으로 넘어가요.
+                </p>
+                {shareStatus && (
+                  <p className="share-status" role="status" aria-live="polite">
+                    {shareStatus}
+                  </p>
+                )}
               </div>
             </aside>
           </div>
@@ -1555,7 +1748,7 @@ function App() {
               부모님 진료, 한 장 먼저 챙겨보기
               <ArrowRight size={18} aria-hidden="true" />
             </BetaLink>
-            <small>유료 가입이나 결제가 아닌 베타테스터 신청입니다.</small>
+            <small>유료 가입이나 결제가 아닌 베타테스터 신청이에요.</small>
           </div>
         </section>
 
@@ -1585,7 +1778,7 @@ function App() {
               <p>
                 현재 체험판에서는 입력한 내용이 서버에 저장되지 않아요.
                 리포트와 AI 정리는 사용 중인 브라우저 안에서 처리되며, 화면을
-                새로고침하면 입력 내용이 사라집니다. 실제 출시 서비스의 저장과
+                새로고침하면 입력 내용이 사라져요. 실제 출시 서비스의 저장과
                 공유 방식은 개인정보와 건강정보를 안전하게 관리할 수 있도록
                 법률 검토와 테스트 결과를 반영해 설계할 예정이에요.
               </p>

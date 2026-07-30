@@ -522,13 +522,16 @@ const copy: Record<string, LocalizedCopy> = {
     en: "Jinryo Hanjang, one caring page for your parent’s visit",
   },
   "진료에 쓸 수 있는": {
-    en: "into",
+    en: "into ",
   },
   "한 장": {
     en: "one useful page",
   },
   "으로 정리해요.": {
-    en: "for the visit.",
+    en: " for the visit.",
+  },
+  "AI 정리는 지원되는 브라우저의 기기 안에서 실행돼요. 입력 문장은 외부 무료 LLM이나 유료 API로 보내지 않고, 공개 모델이 이 기기 안에서 토큰 단위로 내용을 정리해요. API 키나 결제가 필요하지 않아 사용량 초과 과금도 없어요. 처음 사용할 때는 무료 AI 모델 파일을 기기에 내려받아요. 음성 인식은 브라우저 기본 기능을 사용해 브라우저 제공업체의 처리 방식이 적용될 수 있지만, 진료한장은 별도 유료 음성 API를 호출하거나 음성을 저장하지 않아요.": {
+    en: "AI organization runs on your device in a supported browser. Your text is not sent to an external free LLM or paid API; an open model organizes it token by token on this device. No API key or payment is needed, so there are no usage overage charges. The free AI model file is downloaded to your device the first time you use it. Voice recognition uses your browser’s built-in feature, so the browser provider’s processing practices may apply, but Jinryo Hanjang does not call a separate paid voice API or save your voice.",
   },
   "예: 엄마가 지난주 월요일부터 앉았다 일어날 때 어지럽다고 하셨어요. 하루에 서너 번 정도이고 잠깐 앉아서 쉬면 괜찮아진대요. 아침마다 혈압약을 드시고 있고, 이번 진료에서는 약과 어지럼증이 관련 있는지 물어보고 싶어요. 약봉투와 최근 혈압 메모를 가져가려고 해요.": {
     en: "Example: Mom has felt dizzy when standing up since last Monday. It happens three or four times a day and improves after sitting briefly. She takes blood pressure medicine every morning. We want to ask whether the medicine could be related to the dizziness, and we plan to bring her medication packet and recent blood pressure notes.",

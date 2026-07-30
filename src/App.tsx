@@ -1872,12 +1872,20 @@ function App() {
                   {timelineEntries.map((entry, index) => (
                     <div className="timeline-entry" key={entry.id}>
                       <div className="timeline-entry-heading">
-                        <strong>사건 {index + 1}</strong>
+                        <strong>
+                          {language === "en"
+                            ? `Event ${index + 1}`
+                            : `사건 ${index + 1}`}
+                        </strong>
                         <button
                           type="button"
                           className="icon-button"
                           onClick={() => removeTimelineEntry(entry.id)}
-                          aria-label={`타임라인 사건 ${index + 1} 삭제`}
+                          aria-label={
+                            language === "en"
+                              ? `Remove timeline event ${index + 1}`
+                              : `타임라인 사건 ${index + 1} 삭제`
+                          }
                         >
                           <Minus size={17} aria-hidden="true" />
                         </button>

@@ -740,12 +740,6 @@ a {
   letter-spacing: -0.045em;
 }
 
-.app-language-ja .hero-composed h1,
-.app-language-zh .hero-composed h1 {
-  font-size: clamp(40px, 3.65vw, 65px);
-  letter-spacing: -0.05em;
-}
-
 .hero-composed-tagline {
   margin: clamp(20px, 2vw, 28px) 0 0;
   color: #42474e;
@@ -3359,11 +3353,6 @@ a {
     font-size: clamp(38px, 6.6vw, 56px);
   }
 
-  .app-language-ja .hero-composed h1,
-  .app-language-zh .hero-composed h1 {
-    font-size: clamp(40px, 6.9vw, 59px);
-  }
-
   .hero-composed-description {
     margin-right: auto;
     margin-left: auto;
@@ -3549,9 +3538,7 @@ a {
     white-space: normal;
   }
 
-  .app-language-en .hero-composed h1,
-  .app-language-ja .hero-composed h1,
-  .app-language-zh .hero-composed h1 {
+  .app-language-en .hero-composed h1 {
     font-size: clamp(34px, 9.2vw, 44px);
   }
 

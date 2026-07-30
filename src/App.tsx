@@ -39,28 +39,20 @@ const LOCAL_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
 const speechLanguage: Record<Language, string> = {
   ko: "ko-KR",
   en: "en-US",
-  ja: "ja-JP",
-  zh: "zh-CN",
 };
 
 const getLanguageFromLocation = (): Language => {
   const queryLanguage = new URLSearchParams(window.location.search).get("lang");
   if (
     queryLanguage === "ko" ||
-    queryLanguage === "en" ||
-    queryLanguage === "ja" ||
-    queryLanguage === "zh"
+    queryLanguage === "en"
   ) {
     return queryLanguage;
   }
 
   const pathParts = window.location.pathname.split("/").filter(Boolean);
   const pathLanguage = pathParts[pathParts.length - 1];
-  return pathLanguage === "en" ||
-    pathLanguage === "ja" ||
-    pathLanguage === "zh"
-    ? pathLanguage
-    : "ko";
+  return pathLanguage === "en" ? pathLanguage : "ko";
 };
 const storyResponseSchema = {
   type: "object",
@@ -914,7 +906,7 @@ function App() {
         messages: [
           {
             role: "system",
-            content: `당신은 진료 전 정보 정리 도우미입니다. 사용자가 한국어, 영어, 일본어 또는 중국어로 적은 이야기에서 명시된 사실만 추출하고, 사용자가 쓴 언어로 정리하세요.
+            content: `당신은 진료 전 정보 정리 도우미입니다. 사용자가 한국어 또는 영어로 적은 이야기에서 명시된 사실만 추출하고, 사용자가 쓴 언어로 정리하세요.
 진단, 처방, 질병 추정, 의학적 조언을 절대 추가하지 마세요. 확실하지 않거나 적혀 있지 않은 내용은 빈 문자열로 두세요.
 질문과 가져갈 자료, 약은 각각 한 줄에 하나씩 정리하세요. 의료진께 확인할 질문은 최대 3개만 정리하세요.
 같은 시기의 사건은 timeline의 한 항목에 줄바꿈으로 묶으세요.
@@ -1237,28 +1229,6 @@ function App() {
                     </span>
                     <span>
                       you can <em>prepare together.</em>
-                    </span>
-                  </>
-                )}
-                {language === "ja" && (
-                  <>
-                    <span>ご両親の診療に、</span>
-                    <span>
-                      <em>一緒に</em>行けなくても
-                    </span>
-                    <span>
-                      準備は<em>一緒に</em>できます。
-                    </span>
-                  </>
-                )}
-                {language === "zh" && (
-                  <>
-                    <span>父母就诊时，</span>
-                    <span>
-                      即使不能<em>陪在身边，</em>
-                    </span>
-                    <span>
-                      也能<em>一起做好准备。</em>
                     </span>
                   </>
                 )}

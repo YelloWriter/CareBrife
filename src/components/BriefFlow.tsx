@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { arrangeSentences, emptyBrief, organizeStory } from "../lib/brief";
 import type { Brief } from "../lib/brief";
 import "./brief-flow.css";
+import MicrophoneHelp from "./MicrophoneHelp";
 
 type Screen = "start" | "voice" | "recording" | "text" | "processing" | "review" | "manual" | "complete" | "read" | "speech-error" | "organize-error" | "pdf-error";
 const nodeIds: Record<Screen, string> = { start: "842:1821", voice: "842:1846", recording: "842:1868", text: "842:1895", processing: "844:1839", review: "842:1914", manual: "844:1852", complete: "842:1939", read: "843:1931", "speech-error": "842:1966", "organize-error": "842:1978", "pdf-error": "842:1990" };
@@ -44,6 +45,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
   const [status, setStatus] = useState("");
   const [detail, setDetail] = useState("");
   const [exitOpen, setExitOpen] = useState(false);
+  const [permissionHelpOpen, setPermissionHelpOpen] = useState(false);
   const [pendingVoice, setPendingVoice] = useState(false);
   const screenRef = useRef<Screen>("start");
   const recognition = useRef<Recognition | null>(null);
@@ -52,6 +54,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
   const operation = useRef<AbortController | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const permissionHelpTrigger = useRef<HTMLButtonElement>(null);
   const dirty = Boolean(story.trim() || Object.values(brief).some(v => v.trim()));
   const canComplete = Boolean(brief.main.trim() || brief.changes.trim());
   const completed = ["complete", "read", "pdf-error"].includes(screen);
@@ -61,6 +64,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
     else window.scrollTo({ top: 0, behavior: "instant" });
   }
   function navigate(next: Screen, replace = false) {
+    setPermissionHelpOpen(false);
     screenRef.current = next;
     setScreen(next);
     const historyState = { ...window.history.state, briefScreen: next };
@@ -78,6 +82,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
     if (!embedded) window.history.replaceState({ ...window.history.state, briefScreen: "start" }, "", window.location.pathname);
     const onPop = (event: PopStateEvent) => {
       if (embedded && !event.state?.briefScreen) return;
+      setPermissionHelpOpen(false);
       stopRecognition(); operation.current?.abort();
       const next = event.state?.briefScreen;
       const valid: Screen = next && next in nodeIds && !["processing", "recording"].includes(next) ? next : "start";
@@ -243,8 +248,9 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
         <p className="bf-footnote">인쇄 창에서 ‘PDF로 저장’을 선택해 주세요.</p><div className="bf-bottom-links"><button className="bf-text-link" onClick={() => navigate("review")}>내용 수정하기</button><button className="bf-text-link" onClick={requestExit}>나가기</button></div>
       </>}
       {screen === "read" && <>{title("진료한장")}<p className="bf-subtitle">오늘 작성</p><Report brief={brief} large /><Button secondary onClick={savePdf}>PDF 저장하기</Button><button className="bf-text-link" onClick={() => navigate("complete")}>완료 화면으로 돌아가기</button></>}
-      {error && <><div className="bf-error-icon" aria-hidden="true">!</div>{title(error[0])}<p className="bf-error-description">{error[1]}</p>{detail && screen !== "pdf-error" && <p className="bf-error-detail" role="status">{detail}</p>}<div className="bf-error-actions"><Button onClick={() => screen === "speech-error" ? startRecording() : screen === "organize-error" ? void organize() : savePdf()} disabled={pendingVoice}>{pendingVoice ? "마이크 권한 확인 중" : error[2]}</Button><Button secondary onClick={() => screen === "speech-error" ? navigate("text") : screen === "organize-error" ? manual() : navigate("read")}>{error[3]}</Button></div></>}
+      {error && <><div className="bf-error-icon" aria-hidden="true">!</div>{title(error[0])}<p className="bf-error-description">{error[1]}</p>{detail && screen !== "pdf-error" && <p className="bf-error-detail" role="status">{detail}</p>}{screen === "speech-error" && <div className="bf-error-help"><button ref={permissionHelpTrigger} type="button" className="bf-text-link" onClick={() => setPermissionHelpOpen(true)} aria-haspopup="dialog">권한 설정 확인하기</button></div>}<div className="bf-error-actions"><Button onClick={() => screen === "speech-error" ? startRecording() : screen === "organize-error" ? void organize() : savePdf()} disabled={pendingVoice}>{pendingVoice ? "마이크 권한 확인 중" : error[2]}</Button><Button secondary onClick={() => screen === "speech-error" ? navigate("text") : screen === "organize-error" ? manual() : navigate("read")}>{error[3]}</Button></div></>}
     </div>
+    {permissionHelpOpen && screen === "speech-error" && <MicrophoneHelp onClose={() => { setPermissionHelpOpen(false); window.requestAnimationFrame(() => permissionHelpTrigger.current?.focus({ preventScroll: true })); }} onRetry={() => { setPermissionHelpOpen(false); startRecording(); }} />}
     <dialog ref={dialog} className="bf-dialog" onCancel={() => setExitOpen(false)} aria-labelledby="exit-title" aria-describedby="exit-description" data-node-id="844:1870">
       <h2 id="exit-title">{completed ? "PDF를 저장하지 않고 나갈까요?" : "작성하던 내용을 지우고 나갈까요?"}</h2><p id="exit-description">나가면 작성한 내용은 사라지고 다시 복구할 수 없어요.</p>
       <Button onClick={completed ? savePdf : () => setExitOpen(false)}>{completed ? "PDF 저장하기" : "계속 작성하기"}</Button><Button secondary onClick={discard}>저장하지 않고 나가기</Button>

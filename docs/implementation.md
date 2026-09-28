@@ -45,3 +45,16 @@
 랜딩 CTA는 페이지 이동 없이 아래 작성 섹션으로 스크롤합니다. 기존 작성 컴포넌트를 임베드하며 직접 접근용 `/create/`도 유지합니다. 내부 단계 전환은 작성 섹션에 스크롤을 맞추고, 녹음 시작 시에는 위치를 바꾸지 않습니다. 시작/중지 버튼의 위치와 DOM을 유지하며 한 번 클릭 시작·다음 클릭 종료 방식입니다.
 
 네 장면의 생성 이미지와 파형·체크·문서 취합·리포트 전달 애니메이션을 추가했습니다. 일시 정지, 화면 밖 재생 중지, reduced-motion을 적용했습니다. 섹션 안에 임베드된 상태에서도 인쇄는 리포트만 출력합니다.
+
+## 마이크 권한 안내 모달
+
+음성 입력 실패 화면의 ‘권한 설정 확인하기’를 누르면 안내 모달을 엽니다. Chrome/Edge 컴퓨터, Android Chrome, iPhone/iPad Safari, Mac Safari 안내를 선택할 수 있습니다. 기기 정보를 기반으로 초기 항목을 선택하며 사용자가 바꿀 수 있습니다. 모달을 여는 것만으로 마이크를 켜거나 권한을 변경하지 않습니다. ‘설정 후 다시 녹음하기’에서 사용자가 재시도를 선택하면 기존 녹음 기능을 호출합니다.
+
+닫기 버튼·Escape·재열기·포커스 복귀·작은 화면 내부 스크롤을 지원합니다. 앱 내 브라우저의 지원 제한과 새로고침/브라우저 이동 전 원문 보존 안내를 제공합니다. 실제 설정 메뉴는 OS/브라우저 버전에 따라 다를 수 있습니다.
+
+설정 안내 확인일: 2026-09-28. 공식 근거:
+- [Chrome 컴퓨터 마이크 권한](https://support.google.com/chrome/answer/2693767?co=GENIE.Platform%3DDesktop&hl=ko)
+- [Chrome Android 마이크 권한](https://support.google.com/chrome/answer/2693767?co=GENIE.Platform%3DAndroid&hl=ko)
+- [iPhone Safari 웹사이트 설정](https://support.apple.com/guide/iphone/browse-the-web-privately-iphb01fc3c85/ios)
+- [Mac Safari 웹사이트 설정](https://support.apple.com/guide/safari/websites-ibrwe2159f50/mac)
+- [Mac 마이크 접근 제어](https://support.apple.com/guide/mac-help/control-access-to-the-microphone-mchla1b1e1fe/mac)

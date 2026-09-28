@@ -175,3 +175,23 @@
 @media(max-width:480px) { .inline-brief-section { padding:48px 12px; } .bf-embedded { border-radius:22px; } .bf-embedded .bf-main { padding-left:20px; padding-right:20px; } }
 @media(prefers-reduced-motion:reduce) { .bf-mic.is-recording { animation:none; } }
 @media print { .inline-brief-heading { display:none!important; } .inline-brief-section { padding:0; margin:0; background:white; } .bf-embedded { border:0; border-radius:0; box-shadow:none; max-width:none; overflow:visible; } }
+
+.bf-error-help .bf-text-link { font-size:14px; color:#536db6; font-weight:600; margin-top:8px; padding:10px 0; }
+.bf-error-help+.bf-error-actions { margin-top:90px; }
+.bf-permission-dialog { max-width:440px; width:calc(100% - 32px); max-height:calc(100dvh - 32px); overflow-y:auto; overscroll-behavior:contain; padding:22px 24px 24px; }
+.bf-permission-dialog::backdrop { top:0; }
+.bf-permission-header { display:flex; align-items:center; gap:8px; }
+.bf-permission-header h2 { flex:1; font-size:19px; line-height:28px; }
+.bf-permission-close { flex-shrink:0; display:grid; place-items:center; width:40px; height:40px; padding:0; border:0; background:#f1f2f8; color:#5b687c; border-radius:50%; font-size:26px; }
+.bf-permission-dialog #microphone-help-description { margin-top:16px; font-size:13px; line-height:21px; }
+.bf-permission-label { display:block; margin-top:22px; font-size:12px; font-weight:700; color:#536db6; }
+.bf-permission-dialog select { display:block; width:100%; margin-top:8px; min-height:48px; border:1px solid #dce2ed; border-radius:12px; background:white; color:#33445e; padding:10px 12px; font:inherit; font-size:14px; }
+.bf-permission-steps { list-style:none; padding:0; margin:22px 0; display:grid; gap:18px; }
+.bf-permission-steps li { display:flex; gap:12px; align-items:flex-start; }
+.bf-permission-steps li>span { display:grid; place-items:center; width:28px; height:28px; flex-shrink:0; border-radius:50%; background:#eaf7fb; color:#536db6; font-size:13px; font-weight:700; }
+.bf-permission-steps li>p { margin:2px 0 0; color:#33445e; font-size:14px; line-height:22px; }
+.bf-permission-extra { font-size:12px; line-height:20px; color:#5b687c; }
+.bf-permission-extra summary { min-height:36px; cursor:pointer; color:#536db6; font-weight:600; }
+.bf-permission-extra p { font-size:12px; line-height:20px; margin:8px 0 14px; }
+.bf-permission-notice { background:#f1f2f8; border-radius:12px; padding:12px; font-size:12px; line-height:19px; color:#5b687c; margin-top:12px; }
+.bf-permission-dialog .bf-button { margin-top:20px; font-size:16px; }

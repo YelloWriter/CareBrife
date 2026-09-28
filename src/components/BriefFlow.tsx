@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { arrangeSentences, emptyBrief, organizeStory } from "../lib/brief";
 import type { Brief } from "../lib/brief";
 import "./brief-flow.css";
@@ -33,7 +33,8 @@ function Report({ brief, large = false }: { brief: Brief; large?: boolean }) {
   </article>;
 }
 
-export default function BriefFlow() {
+export default function BriefFlow({ embedded = false }: { embedded?: boolean }) {
+  const flowRoot = useRef<HTMLDivElement>(null);
   const [screen, setScreen] = useState<Screen>("start");
   const [story, setStory] = useState("");
   const [brief, setBrief] = useState<Brief>({ ...emptyBrief });
@@ -55,12 +56,16 @@ export default function BriefFlow() {
   const canComplete = Boolean(brief.main.trim() || brief.changes.trim());
   const completed = ["complete", "read", "pdf-error"].includes(screen);
 
+  function scrollToFlow() {
+    if (embedded) flowRoot.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    else window.scrollTo({ top: 0, behavior: "instant" });
+  }
   function navigate(next: Screen, replace = false) {
     screenRef.current = next;
     setScreen(next);
     const historyState = { ...window.history.state, briefScreen: next };
-    window.history[replace ? "replaceState" : "pushState"](historyState, "", `#${next}`);
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.history[replace ? "replaceState" : "pushState"](historyState, "", embedded ? "#create-report" : `#${next}`);
+    if (next !== "recording") scrollToFlow();
   }
   function stopRecognition() {
     const current = recognition.current;
@@ -70,8 +75,9 @@ export default function BriefFlow() {
   }
   useEffect(() => {
     setWrittenDate(new Date().toLocaleDateString("ko-KR"));
-    window.history.replaceState({ ...window.history.state, briefScreen: "start" }, "", window.location.pathname);
+    if (!embedded) window.history.replaceState({ ...window.history.state, briefScreen: "start" }, "", window.location.pathname);
     const onPop = (event: PopStateEvent) => {
+      if (embedded && !event.state?.briefScreen) return;
       stopRecognition(); operation.current?.abort();
       const next = event.state?.briefScreen;
       const valid: Screen = next && next in nodeIds && !["processing", "recording"].includes(next) ? next : "start";
@@ -80,7 +86,7 @@ export default function BriefFlow() {
     window.addEventListener("popstate", onPop);
     return () => { window.removeEventListener("popstate", onPop); stopRecognition(); operation.current?.abort(); };
   }, []);
-  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [screen]);
+  useEffect(() => { if (screen !== "recording" && (!embedded || screen !== "start")) heading.current?.focus({ preventScroll: true }); }, [screen, embedded]);
   useEffect(() => {
     if (!dirty && screen !== "recording") return;
     const protect = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
@@ -158,17 +164,23 @@ export default function BriefFlow() {
     } catch { navigate("pdf-error"); }
   }
   function requestExit() {
-    window.scrollTo({ top: 0, behavior: "instant" });
+    if (!embedded) window.scrollTo({ top: 0, behavior: "instant" });
     if (dirty || screen === "recording") setExitOpen(true);
-    else { stopRecognition(); window.location.assign("/"); }
+    else { stopRecognition(); returnToLanding(); }
+  }
+  function returnToLanding() {
+    if (embedded) {
+      window.history.replaceState({ ...window.history.state, briefScreen: "start" }, "", "#top");
+      document.getElementById("top")?.scrollIntoView({ behavior: "smooth" });
+    } else window.location.assign("/");
   }
   function discard() {
     operation.current?.abort(); stopRecognition(); setExitOpen(false); setStory(""); setBrief({ ...emptyBrief });
     navigate("start", true);
     // Allow the beforeunload effect to remove its listener before leaving.
-    window.setTimeout(() => window.location.assign("/"), 0);
+    window.setTimeout(returnToLanding, 0);
   }
-  function title(text: string, className = "") { return <h1 ref={heading} tabIndex={-1} className={className}>{text}</h1>; }
+  function title(text: string, className = "") { const Tag = embedded ? "h2" : "h1"; return <Tag ref={heading} tabIndex={-1} className={`bf-title ${className}`}>{text}</Tag>; }
   function tabs() { return <div className="bf-tabs" role="group" aria-label="입력 방식"><button aria-pressed={screen === "voice"} onClick={() => navigate("voice")}>{screen === "voice" && "●  "}말로 입력</button><button aria-pressed={screen === "text"} onClick={() => navigate("text")}>{screen === "text" && "●  "}글로 입력</button></div>; }
   const step = screen === "read" ? "읽기 화면" : ["voice", "recording", "text"].includes(screen) ? "1 / 3  입력" : screen === "processing" ? "2 / 3  정리" : ["review", "manual"].includes(screen) ? "2 / 3  확인" : screen === "complete" ? "3 / 3  완료" : "";
   const errorConfig = {
@@ -178,9 +190,9 @@ export default function BriefFlow() {
   };
   const error = screen in errorConfig ? errorConfig[screen as keyof typeof errorConfig] : null;
 
-  return <div className="bf-app" data-screen={screen} data-node-id={nodeIds[screen]}>
+  return <div ref={flowRoot} className={`bf-app${embedded ? " bf-embedded" : ""}`} data-screen={screen} data-node-id={nodeIds[screen]}>
     <header className="bf-header"><div><button className="bf-home" onClick={requestExit} aria-label="진료한장 홈으로 나가기"><Logo /></button><span>{step}</span></div></header>
-    <main className={`bf-main bf-${screen}`}>
+    <div className={`bf-main bf-${screen}`} role="region" aria-label="진료한장 작성">
       {screen === "start" && <>
         <span className="bf-badge">진료 준비</span>
         {title("처음 가는 병원,\n할 말을 한 장으로.")}
@@ -190,12 +202,19 @@ export default function BriefFlow() {
         <Button onClick={() => navigate("voice")}>진료한장 만들기</Button>
         <p className="bf-footnote">진단·처방이 아닌 진료 전 정리 도구예요.</p>
       </>}
-      {(screen === "voice" || screen === "text") && <>
-        {title(screen === "voice" ? "무엇을 전하고 싶나요?" : "글로 편하게 적어주세요")}
-        <Prompt />{tabs()}
-        {screen === "voice" ? <>
-          <div className="bf-voice-action"><button className="bf-mic" aria-label="녹음 시작" onClick={startRecording} disabled={pendingVoice}><img src="/figma/microphone.svg" alt="" width="58" height="58" /></button><strong>{pendingVoice ? "마이크 권한을 확인해 주세요" : "한 번 눌러 말하기"}</strong><p>최대 5분 · 다시 누르면 종료</p></div>
-          <Button secondary onClick={() => { stopRecognition(); navigate("text"); }}>글로 입력하기</Button>
+      {(screen === "voice" || screen === "recording" || screen === "text") && <>
+        {title(screen === "recording" ? "편하게 말씀해 주세요" : screen === "voice" ? "무엇을 전하고 싶나요?" : "글로 편하게 적어주세요")}
+        <Prompt />{screen === "recording" ? <div className="bf-tabs bf-recording-tabs"><span>● 녹음 중</span><span>다시 누르면 종료</span></div> : tabs()}
+        {screen !== "text" ? <>
+          <div className="bf-voice-action">
+            <button className={`bf-mic${screen === "recording" ? " is-recording" : ""}`} aria-label={screen === "recording" ? "녹음 마치기" : "녹음 시작"} aria-pressed={screen === "recording"} onClick={() => screen === "recording" ? recognition.current?.stop() : startRecording()} disabled={pendingVoice}>
+              {screen === "recording" ? <span className="bf-stop-symbol" aria-hidden="true" /> : <img src="/figma/microphone.svg" alt="" width="58" height="58" />}
+            </button>
+            <strong>{pendingVoice ? "마이크 권한을 확인해 주세요" : screen === "recording" ? "한 번 더 눌러 녹음 마치기" : "한 번 눌러 말하기"}</strong>
+            {screen === "recording" ? <output className="bf-voice-timer" aria-label="녹음 시간">{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</output> : <p>최대 5분 · 다시 누르면 종료</p>}
+          </div>
+          {screen === "recording" ? <p className="bf-recording-limit">5분이 되면 자동으로 종료돼요.</p> : <Button secondary onClick={() => { stopRecognition(); navigate("text"); }}>글로 입력하기</Button>}
+
           <p className="bf-footnote">진료한장은 녹음 파일을 저장하지 않아요.</p>
           <details className="bf-voice-privacy"><summary>음성 입력 안내</summary><p>음성은 브라우저 제공업체에서 처리될 수 있어요. 음성 입력을 시작하면 마이크 권한을 요청해요. 원하지 않으면 글로 입력해 주세요.</p></details>
         </> : <>
@@ -203,11 +222,6 @@ export default function BriefFlow() {
           <Button disabled={!story.trim()} onClick={() => void organize()}>내용 정리하기</Button>
           <p className="bf-footnote">정리 후 직접 고칠 수 있어요.</p><button className="bf-text-link" onClick={manual}>자동 정리 없이 직접 작성하기</button>
         </>}
-      </>}
-      {screen === "recording" && <>
-        {title("편하게 말씀해 주세요")}<Prompt />
-        <div className="bf-recording-status"><span className="bf-badge">● 녹음 중</span><output aria-label="녹음 시간">{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</output><div className="bf-wave" aria-hidden="true">{[28,53,76,42,97,58,80,46,72,37,54,29].map((height,i) => <i key={i} style={{ height, "--delay": `${i * 0.08}s` } as CSSProperties} />)}</div></div>
-        <Button onClick={() => recognition.current?.stop()}>녹음 마치기</Button><p className="bf-footnote">5분이 되면 자동으로 종료돼요.</p>
       </>}
       {screen === "processing" && <>
         {title("내용을 정리하고 있어요")}<p className="bf-processing-intro">입력하신 말에서 중요한 내용과 변화를 나누고 있어요.</p>
@@ -230,7 +244,7 @@ export default function BriefFlow() {
       </>}
       {screen === "read" && <>{title("진료한장")}<p className="bf-subtitle">오늘 작성</p><Report brief={brief} large /><Button secondary onClick={savePdf}>PDF 저장하기</Button><button className="bf-text-link" onClick={() => navigate("complete")}>완료 화면으로 돌아가기</button></>}
       {error && <><div className="bf-error-icon" aria-hidden="true">!</div>{title(error[0])}<p className="bf-error-description">{error[1]}</p>{detail && screen !== "pdf-error" && <p className="bf-error-detail" role="status">{detail}</p>}<div className="bf-error-actions"><Button onClick={() => screen === "speech-error" ? startRecording() : screen === "organize-error" ? void organize() : savePdf()} disabled={pendingVoice}>{pendingVoice ? "마이크 권한 확인 중" : error[2]}</Button><Button secondary onClick={() => screen === "speech-error" ? navigate("text") : screen === "organize-error" ? manual() : navigate("read")}>{error[3]}</Button></div></>}
-    </main>
+    </div>
     <dialog ref={dialog} className="bf-dialog" onCancel={() => setExitOpen(false)} aria-labelledby="exit-title" aria-describedby="exit-description" data-node-id="844:1870">
       <h2 id="exit-title">{completed ? "PDF를 저장하지 않고 나갈까요?" : "작성하던 내용을 지우고 나갈까요?"}</h2><p id="exit-description">나가면 작성한 내용은 사라지고 다시 복구할 수 없어요.</p>
       <Button onClick={completed ? savePdf : () => setExitOpen(false)}>{completed ? "PDF 저장하기" : "계속 작성하기"}</Button><Button secondary onClick={discard}>저장하지 않고 나가기</Button>

@@ -10,6 +10,8 @@ import {
   translateInterfaceText,
 } from "./i18n";
 import type { Language } from "./i18n";
+import BriefFlow from "./components/BriefFlow";
+import CareJourney from "./components/CareJourney";
 
 const BETA_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSdv7-MYk37xpZkBIXTOJsZLTyOBeV0_8FSu5pX_eRMaf_SwUA/viewform?usp=header";
@@ -71,9 +73,6 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
   const appRef = useRef<HTMLDivElement>(null);
   const originalTextNodesRef = useRef(new WeakMap<Text, string>());
   const originalAttributesRef = useRef(new WeakMap<Element, Record<string, string>>());
-  useEffect(() => {
-    if (window.location.hash === "#create-report") window.location.replace("/create/");
-  }, []);
   const changeLanguage = (nextLanguage: Language) => {
     setLanguage(nextLanguage);
 
@@ -219,7 +218,7 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
           ".value-grid > *",
           ".value-note",
           ".step-grid > *",
-          ".care-flow",
+          ".care-journey",
           ".privacy-heading",
           ".privacy-card-grid > *",
           ".privacy-bottom",
@@ -306,7 +305,7 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
         <nav aria-label="주요 메뉴">
           <a href="#how-it-works">이용 방법</a>
           <a href="#privacy">개인정보 안내</a>
-          <a className="nav-cta" href="/create/">
+          <a className="nav-cta" href="#create-report">
             만들어보기
           </a>
         </nav>
@@ -381,7 +380,7 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
                 보여줄 한 장으로 정리해드려요.
               </p>
               <div className="hero-actions hero-composed-actions">
-                <a className="button button-primary" href="/create/">
+                <a className="button button-primary" href="#create-report">
                   진료한장 만들어보기
                   <ArrowDown size={18} aria-hidden="true" />
                 </a>
@@ -583,77 +582,7 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
               <p>완성된 진료한장을 가족에게 보내거나 인쇄해 챙겨가요.</p>
             </article>
           </div>
-          <div
-            className="care-flow"
-            role="img"
-            aria-label="말하기, 함께 확인하기, 한 장으로 정리하기, 병원에서 보여주기 흐름"
-          >
-            <div className="care-flow-step">
-              <div className="care-character care-character-talk" aria-hidden="true">
-                <span className="character-head">
-                  <i />
-                  <i />
-                  <b />
-                </span>
-                <span className="character-body" />
-                <span className="character-prop">
-                  <Mic size={18} />
-                </span>
-              </div>
-              <strong>말하기</strong>
-            </div>
-            <span className="care-flow-arrow" aria-hidden="true">
-              <ArrowRight size={22} />
-            </span>
-            <div className="care-flow-step">
-              <div className="care-character care-character-review" aria-hidden="true">
-                <span className="character-head">
-                  <i />
-                  <i />
-                  <b />
-                </span>
-                <span className="character-body" />
-                <span className="character-prop">
-                  <UsersRound size={19} />
-                </span>
-              </div>
-              <strong>확인하기</strong>
-            </div>
-            <span className="care-flow-arrow" aria-hidden="true">
-              <ArrowRight size={22} />
-            </span>
-            <div className="care-flow-step">
-              <div className="care-character care-character-page" aria-hidden="true">
-                <span className="character-head">
-                  <i />
-                  <i />
-                  <b />
-                </span>
-                <span className="character-body" />
-                <span className="character-prop">
-                  <FileCheck2 size={19} />
-                </span>
-              </div>
-              <strong>한 장 정리</strong>
-            </div>
-            <span className="care-flow-arrow" aria-hidden="true">
-              <ArrowRight size={22} />
-            </span>
-            <div className="care-flow-step">
-              <div className="care-character care-character-clinic" aria-hidden="true">
-                <span className="character-head">
-                  <i />
-                  <i />
-                  <b />
-                </span>
-                <span className="character-body" />
-                <span className="character-prop">
-                  <Printer size={19} />
-                </span>
-              </div>
-              <strong>병원에서 보여주기</strong>
-            </div>
-          </div>
+          <CareJourney language={language} />
         </section>
 
         <section className="privacy-section landing" id="privacy">
@@ -702,11 +631,20 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
               민감한 건강정보를 입력하기 전에는 그때 공개되는 개인정보
               처리방식을 꼭 확인해 주세요.
             </p>
-            <a href="/create/">
+            <a href="#create-report">
               안내 확인하고 체험판 시작하기
               <ChevronRight size={18} aria-hidden="true" />
             </a>
           </div>
+        </section>
+
+        <section className="inline-brief-section" id="create-report" aria-labelledby="create-report-title" data-i18n-skip>
+          <div className="inline-brief-heading">
+            <p className="section-kicker">YOUR CARING PAGE</p>
+            <h2 id="create-report-title">이제, 우리 가족의 진료를 준비해요.</h2>
+            <p>편하게 남긴 이야기가 진료실에서 전할 한 장이 됩니다.</p>
+          </div>
+          <BriefFlow embedded />
         </section>
 
         <section

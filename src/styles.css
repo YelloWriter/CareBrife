@@ -1,13 +1,33 @@
-@import url("https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap");
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+  --color-background: #f8f7f3;
+  --color-foreground: #33445e;
+  --color-card: #fffefa;
+  --color-card-foreground: #33445e;
+  --color-primary: #536db6;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #eef2fb;
+  --color-secondary-foreground: #33445e;
+  --color-accent: #eaf7fb;
+  --color-accent-foreground: #173f78;
+  --color-muted-foreground: #5b687c;
+  --color-border: #dbe1ec;
+  --color-input: #dbe1ec;
+  --color-ring: #536db6;
+  --color-destructive: #bd3543;
+}
 
 :root {
-  font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  font-family: "Noto Sans KR Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   color: #33445e;
   background: #f8f7f3;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --display-font: "Gowun Dodum", "Noto Sans KR", sans-serif;
+  --display-font: "Gowun Dodum", "Noto Sans KR Variable", sans-serif;
   --ink: #173f78;
   --muted: #6d7785;
   --line: #dbe1ec;
@@ -1281,7 +1301,7 @@ a {
   margin: 0 auto;
 }
 
-.value-grid article {
+.value-grid [data-slot="card"] {
   min-height: 280px;
   padding: 34px;
   border: 1px solid #dce2ee;
@@ -1292,7 +1312,7 @@ a {
     box-shadow 240ms ease;
 }
 
-.value-grid article:hover {
+.value-grid [data-slot="card"]:hover {
   transform: translateY(-6px);
   box-shadow: 0 24px 54px rgba(42, 61, 98, 0.1);
 }
@@ -1301,7 +1321,7 @@ a {
   transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.value-grid article:hover .value-icon {
+.value-grid [data-slot="card"]:hover .value-icon {
   transform: rotate(7deg) scale(1.07);
 }
 
@@ -3285,7 +3305,7 @@ a {
 .site-footer p,
 .site-footer span {
   margin: 0;
-  color: #77898e;
+  color: #596b72;
   font-size: 11px;
 }
 
@@ -3437,7 +3457,7 @@ a {
     max-width: 680px;
   }
 
-  .value-grid article {
+  .value-grid [data-slot="card"] {
     min-height: 0;
   }
 
@@ -3709,7 +3729,7 @@ a {
     text-align: left;
   }
 
-  .value-grid article {
+  .value-grid [data-slot="card"] {
     padding: 28px 24px;
   }
 

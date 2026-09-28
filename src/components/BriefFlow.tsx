@@ -50,6 +50,10 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
   const [exitOpen, setExitOpen] = useState(false);
   const [permissionHelpOpen, setPermissionHelpOpen] = useState(false);
   const [pendingVoice, setPendingVoice] = useState(false);
+  const [pdfPending, setPdfPending] = useState(false);
+  const [pdfDownload, setPdfDownload] = useState<{ url: string; filename: string } | null>(null);
+  const pdfOperation = useRef<AbortController | null>(null);
+  const pdfUrl = useRef<string | null>(null);
   const [localVoice, setLocalVoice] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const preferLocal = useRef(false);
@@ -72,6 +76,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
     else window.scrollTo({ top: 0, behavior: "instant" });
   }
   function navigate(next: Screen, replace = false) {
+    if (!["complete", "read", "pdf-error"].includes(next)) clearPdf();
     setPermissionHelpOpen(false);
     screenRef.current = next;
     setScreen(next);
@@ -91,6 +96,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
     if (!embedded) window.history.replaceState({ ...window.history.state, briefScreen: "start" }, "", window.location.pathname);
     const onPop = (event: PopStateEvent) => {
       if (embedded && !event.state?.briefScreen) return;
+      clearPdf();
       setPermissionHelpOpen(false);
       stopRecognition(); operation.current?.abort();
       const next = event.state?.briefScreen;
@@ -98,7 +104,10 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
       screenRef.current = valid; setScreen(valid);
     };
     window.addEventListener("popstate", onPop);
-    return () => { window.removeEventListener("popstate", onPop); stopRecognition(); operation.current?.abort(); };
+    return () => {
+      window.removeEventListener("popstate", onPop); stopRecognition(); operation.current?.abort();
+      pdfOperation.current?.abort(); if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
+    };
   }, []);
   useEffect(() => { if (screen !== "recording" && (!embedded || screen !== "start")) heading.current?.focus({ preventScroll: true }); }, [screen, embedded]);
   useEffect(() => {
@@ -241,13 +250,41 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
     try { instance.start(); } catch { stopRecognition(); setDetail("마이크를 시작하지 못했어요. 글로 입력해 주세요."); navigate("speech-error"); }
   }
   function manual() { operation.current?.abort(); setBrief(arrangeSentences(story)); navigate("manual"); }
-  function savePdf() {
+  function clearPdf() {
+    pdfOperation.current?.abort(); pdfOperation.current = null;
+    if (pdfUrl.current) URL.revokeObjectURL(pdfUrl.current);
+    pdfUrl.current = null; setPdfDownload(null); setPdfPending(false);
+  }
+  async function savePdf() {
+    if (pdfOperation.current) return;
+    clearPdf();
+    const controller = new AbortController(); pdfOperation.current = controller;
+    setPdfPending(true);
     setExitOpen(false);
     try {
-      if (typeof window.print !== "function") throw new Error("Printing unavailable");
-      window.print();
-      // A browser cannot tell whether the user saved or cancelled the print dialog.
-    } catch { navigate("pdf-error"); }
+      const { createReportPdf } = await import("../lib/report-pdf");
+      controller.signal.throwIfAborted();
+      const blob = await createReportPdf({ ...brief }, writtenDate, controller.signal);
+      controller.signal.throwIfAborted();
+      const url = URL.createObjectURL(blob); pdfUrl.current = url;
+      const today = new Date();
+      const filename = `진료한장_${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}.pdf`;
+      setPdfDownload({ url, filename });
+      const link = document.createElement("a");
+      link.href = url; link.download = filename; document.body.append(link);
+      link.click(); link.remove();
+      // A download request is not proof that the user saved the file.
+      if (screenRef.current === "pdf-error") navigate("complete", true);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setDetail(error instanceof Error && error.name === "UnsupportedPdfTextError"
+          ? "PDF에 표시할 수 없는 문자가 있어요. 이모지 등 특수 문자를 수정한 뒤 다시 저장해 주세요. 작성 내용은 그대로 남아 있어요."
+          : "PDF 파일을 준비하지 못했어요. 연결을 확인하고 다시 시도해 주세요. 작성 내용은 그대로 남아 있어요.");
+        navigate("pdf-error");
+      }
+    } finally {
+      if (pdfOperation.current === controller) { pdfOperation.current = null; setPdfPending(false); }
+    }
   }
   function requestExit() {
     if (!embedded) window.scrollTo({ top: 0, behavior: "instant" });
@@ -324,17 +361,18 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
       </>}
       {screen === "complete" && <>
         {title("진료한장이 완성됐어요")}<p className="bf-subtitle">진료실에서 보여주거나 보면서 설명해 보세요.</p><Report brief={brief} />
-        <Button onClick={() => navigate("read")}>의료진에게 크게 보여주기</Button><Button secondary onClick={savePdf}>PDF 저장하기</Button>
+        <Button onClick={() => navigate("read")}>의료진에게 크게 보여주기</Button><Button secondary onClick={savePdf} disabled={pdfPending}>{pdfPending ? "PDF 만드는 중…" : "PDF 저장하기"}</Button>
         <p className="bf-footnote bf-pdf-note">내용이 길면 PDF가 여러 페이지로 저장될 수 있어요.</p><div className="bf-notice bf-session">나가기 전에 PDF를 저장해 주세요.<br />다시 접속해도 이 내용은 복구되지 않습니다.</div>
-        <p className="bf-footnote">인쇄 창에서 ‘PDF로 저장’을 선택해 주세요.</p><div className="bf-bottom-links"><button className="bf-text-link" onClick={() => navigate("review")}>내용 수정하기</button><button className="bf-text-link" onClick={requestExit}>나가기</button></div>
+        <p className="bf-footnote">PDF 파일은 기기 안에서 만들어요. 다운로드한 파일을 확인해 주세요.</p><div className="bf-bottom-links"><button className="bf-text-link" onClick={() => navigate("review")}>내용 수정하기</button><button className="bf-text-link" onClick={requestExit}>나가기</button></div>
       </>}
-      {screen === "read" && <>{title("진료한장")}<p className="bf-subtitle">오늘 작성</p><Report brief={brief} large /><Button secondary onClick={savePdf}>PDF 저장하기</Button><button className="bf-text-link" onClick={() => navigate("complete")}>완료 화면으로 돌아가기</button></>}
-      {error && <><div className="bf-error-icon" aria-hidden="true">!</div>{title(error[0])}<p className="bf-error-description">{error[1]}</p>{detail && screen !== "pdf-error" && <p className="bf-error-detail" role="status">{detail}</p>}{screen === "speech-error" && <div className="bf-error-help"><button ref={permissionHelpTrigger} type="button" className="bf-text-link" onClick={() => setPermissionHelpOpen(true)} aria-haspopup="dialog">권한 설정 확인하기</button></div>}<div className="bf-error-actions"><Button onClick={() => screen === "speech-error" ? startRecording() : screen === "organize-error" ? void organize() : savePdf()} disabled={pendingVoice}>{pendingVoice ? "마이크 권한 확인 중" : error[2]}</Button><Button secondary onClick={() => screen === "speech-error" ? navigate("text") : screen === "organize-error" ? manual() : navigate("read")}>{error[3]}</Button></div></>}
+      {screen === "read" && <>{title("진료한장")}<p className="bf-subtitle">오늘 작성</p><Report brief={brief} large /><Button secondary onClick={savePdf} disabled={pdfPending}>{pdfPending ? "PDF 만드는 중…" : "PDF 저장하기"}</Button><button className="bf-text-link" onClick={() => navigate("complete")}>완료 화면으로 돌아가기</button></>}
+      {error && <><div className="bf-error-icon" aria-hidden="true">!</div>{title(error[0])}<p className="bf-error-description">{error[1]}</p>{detail && <p className="bf-error-detail" role="status">{detail}</p>}{screen === "speech-error" && <div className="bf-error-help"><button ref={permissionHelpTrigger} type="button" className="bf-text-link" onClick={() => setPermissionHelpOpen(true)} aria-haspopup="dialog">권한 설정 확인하기</button></div>}<div className="bf-error-actions"><Button onClick={() => screen === "speech-error" ? startRecording() : screen === "organize-error" ? void organize() : savePdf()} disabled={pendingVoice || pdfPending}>{pdfPending ? "PDF 만드는 중…" : pendingVoice ? "마이크 권한 확인 중" : error[2]}</Button><Button secondary onClick={() => screen === "speech-error" ? navigate("text") : screen === "organize-error" ? manual() : navigate("read")}>{error[3]}</Button></div></>}
+      {completed && pdfDownload && <div className="bf-notice bf-pdf-download" role="status"><p>PDF 파일을 준비했어요.<br />다운로드가 시작되지 않으면 아래 링크를 눌러주세요.</p><a href={pdfDownload.url} download={pdfDownload.filename}>PDF 파일 다시 받기</a><a href={pdfDownload.url} target="_blank" rel="noopener noreferrer">PDF 열기</a></div>}
     </div>
     {permissionHelpOpen && screen === "speech-error" && <MicrophoneHelp onClose={() => { setPermissionHelpOpen(false); window.requestAnimationFrame(() => permissionHelpTrigger.current?.focus({ preventScroll: true })); }} onRetry={() => { setPermissionHelpOpen(false); startRecording(); }} />}
     <dialog ref={dialog} className="bf-dialog" onCancel={() => setExitOpen(false)} aria-labelledby="exit-title" aria-describedby="exit-description" data-node-id="844:1870">
       <h2 id="exit-title">{completed ? "PDF를 저장하지 않고 나갈까요?" : "작성하던 내용을 지우고 나갈까요?"}</h2><p id="exit-description">나가면 작성한 내용은 사라지고 다시 복구할 수 없어요.</p>
-      <Button onClick={completed ? savePdf : () => setExitOpen(false)}>{completed ? "PDF 저장하기" : "계속 작성하기"}</Button><Button secondary onClick={discard}>저장하지 않고 나가기</Button>
+      <Button onClick={completed ? savePdf : () => setExitOpen(false)} disabled={pdfPending}>{pdfPending ? "PDF 만드는 중…" : completed ? "PDF 저장하기" : "계속 작성하기"}</Button><Button secondary onClick={discard}>저장하지 않고 나가기</Button>
     </dialog>
     <div className="bf-print"><Report brief={brief} /><p>작성일: {writtenDate}</p></div>
   </div>;

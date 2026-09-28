@@ -70,6 +70,13 @@ test("landing CTA, input, edits, read mode, PDF and exit retain the user's data"
   await page.pdf({ path:"test-results/report.pdf", preferCSSPageSize:true, printBackground:true });
   await page.emulateMedia({ media:"screen" });
   await page.evaluate(() => { window.print = () => { throw new Error("test print unavailable"); }; });
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name:"PDF 저장하기", exact:true }).click();
+  const pdf = await downloaded;
+  expect(pdf.suggestedFilename()).toMatch(/^진료한장_\d{4}-\d{2}-\d{2}\.pdf$/);
+  await pdf.saveAs("test-results/downloaded-report.pdf");
+  await expect(page.getByRole("link", { name:"PDF 파일 다시 받기" })).toBeVisible();
+  await page.route("**/fonts/NotoSansKR-Regular.ttf", route => route.abort());
   await page.getByRole("button", { name:"PDF 저장하기", exact:true }).click();
   await expect(page.getByRole("heading", { name:"PDF를 저장하지 못했어요" })).toBeVisible();
   await page.locator(".bf-app").screenshot({ path:"test-results/pdf-error.png" });

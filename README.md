@@ -2,6 +2,8 @@
 
 증상·복용약·최근 변화·질문을 진료 전에 정리하는 웹사이트입니다. 진단이나 처방을 제공하지 않습니다.
 
+[사이트 바로 보기](https://carebrief-iota.vercel.app) · [모바일 화면](docs/screenshots/mobile.png) · [데스크톱 화면](docs/screenshots/desktop.png)
+
 ## 기술 및 실행
 
 - Next.js 16 App Router, React 19, TypeScript
@@ -63,7 +65,7 @@ npm test
 ## 배포
 
 - GitHub: https://github.com/YelloWriter/carebrief
-- Vercel 배포 URL: 연결·배포 확인 후 기록 예정
+- Vercel 배포 URL: **https://carebrief-iota.vercel.app**
 - Framework Preset: Next.js / Root Directory: 저장소 루트 / Build: `npm run build`
 - Output Directory: Vercel 기본 자동 감지. Next 정적 export 설정이 `out/`을 생성합니다.
 - 필수 환경변수 없음. 커스텀 도메인은 `NEXT_PUBLIC_SITE_URL`에 공개 origin을 지정합니다.

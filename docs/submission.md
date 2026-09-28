@@ -1,6 +1,6 @@
 # 제출 점검 기록
 
-기준일: 2026-09-28. 제출 준비 작업 중이며 배포 결과 확인 후 이 기록을 갱신합니다.
+기준일: 2026-09-28. Next.js 전환·제출 보완을 기본 브랜치에 반영하고 실제 Vercel 운영 사이트를 검증했습니다.
 
 | 요구사항 | 구현 근거 |
 | --- | --- |
@@ -14,7 +14,7 @@
 | 사용자 인터랙션 | 같은 페이지 CTA, 녹음 토글, 폼, 권한 모달, 애니메이션 제어 |
 | 반응형·접근성 | Playwright 320/390/768/1440, 포커스 복귀, reduced-motion |
 | 메타데이터 | App Router Metadata, OG 이미지, canonical, robots, sitemap |
-| GitHub·Vercel | 최종 배포 후 아래 기록 |
+| GitHub·Vercel | 운영 배포·검증 근거는 아래 기록 |
 
 ## 검증
 - Next.js 프로덕션 정적 빌드·타입 검사 통과.
@@ -28,8 +28,8 @@
 
 ## 배포
 GitHub: https://github.com/YelloWriter/carebrief
-Vercel: 연결·배포 확인 중
-공개/평가자 접근: 사용자 선택 확인 중
+Vercel: https://carebrief-iota.vercel.app
+Vercel 사이트: 로그인 없이 접근 확인. GitHub 저장소: 비공개 유지, 평가자 GitHub 계정 초대 또는 공개 전환은 소유자가 선택해야 합니다.
 
 ## Lighthouse 개선 전
 로컬 프로덕션 빌드 기준: 모바일 성능 66 / 접근성 96 / 권장사항 100 / SEO 100, 데스크톱 99 / 96 / 100 / 100.
@@ -45,3 +45,19 @@ Vercel: 연결·배포 확인 중
 | 데스크톱 | 95 | 100 | 100 | 100 |
 
 로컬 측정이며 네트워크·CPU·측정 시점에 따라 점수는 달라집니다. 배포 성능을 보장하는 수치는 아닙니다. `npm run audit:lighthouse`로 재현하고 `.lighthouse/mobile.html`, `.lighthouse/desktop.html`을 확인합니다. 추가 최적화 후보는 기존 미사용 CSS와 JavaScript 축소입니다.
+
+## 실제 배포 검증
+- PR #1 병합: `b26d1dcc8cea59a8a69c5868f7864e3d530194d8`.
+- GitHub Actions: https://github.com/YelloWriter/carebrief/actions/runs/36381996938 — 설치·타입·빌드·11개 테스트 성공.
+- Vercel 최초 운영 배포: https://vercel.com/tom-f7d5/carebrief/J8Lr2eEcTM2jvAyDfpLoa5ACedjc — Ready, main 소스 확인.
+- 독립 브라우저 컨텍스트(로그인·기존 쿠키 없음)로 실제 운영 URL의 Playwright 11개 시나리오 전부 통과.
+- 같은 페이지 CTA, 입력·수정·완료·크게 보기·인쇄·오류 복구·권한 모달, 320/390/768/1440px 가로 넘침, 이미지와 콘솔 검사.
+- `/`, `/en/`, `/create/`, `robots.txt`, `sitemap.xml` 접근 확인. OG 이미지와 canonical은 실제 운영 도메인을 가리킵니다.
+- 외부 베타 신청 링크 HTTP 200 확인(신청 제출은 하지 않음).
+- 실제 배포 화면: [모바일](screenshots/mobile.png), [데스크톱](screenshots/desktop.png).
+
+## 자동 재배포 확인 방법
+이 README·검증 기록을 main에 push한 커밋의 Vercel 상태와 아래 Deployments의 소스 SHA를 대조합니다. 운영 URL은 동일하게 유지됩니다. 수동 zip 업로드나 CLI 배포를 사용하지 않습니다.
+https://vercel.com/tom-f7d5/carebrief/deployments?environment=production
+
+검증 명령: `TEST_BASE_URL=https://carebrief-iota.vercel.app npm test`.

@@ -139,6 +139,9 @@
 .bf-dialog .bf-button+.bf-button { margin-top:12px; }
 .bf-dialog .bf-secondary { font-size:16px; }
 .bf-print { display:none; }
+.bf-pdf-download { margin-top:20px; }
+.bf-pdf-download p { margin:0 0 12px; }
+.bf-pdf-download a { display:inline-block; color:var(--bf-brand); text-decoration:underline; text-underline-offset:3px; padding:10px 0; margin-right:20px; }
 @media(min-width:700px) { .bf-app { background:linear-gradient(90deg,#f0f1ef,#f8f7f3 25%,#f8f7f3 75%,#f0f1ef); } }
 @media(prefers-reduced-motion:reduce) { .bf-app * { animation:none!important; scroll-behavior:auto!important; transition:none!important; } }
 @media print {

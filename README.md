@@ -2,7 +2,7 @@
 
 증상·복용약·최근 변화·질문을 진료 전에 정리하는 웹사이트입니다. 진단이나 처방을 제공하지 않습니다.
 
-[사이트 바로 보기](https://carebrief-iota.vercel.app) · [모바일 화면](docs/screenshots/mobile.png) · [데스크톱 화면](docs/screenshots/desktop.png)
+[공개 GitHub 저장소](https://github.com/YelloWriter/CareBrife) · [사이트 바로 보기](https://carebrief-iota.vercel.app) · [모바일 화면](docs/screenshots/mobile.png) · [데스크톱 화면](docs/screenshots/desktop.png)
 
 ## 기술 및 실행
 
@@ -12,11 +12,18 @@
 - Next.js 정적 내보내기(`output: "export"`) → `out/` → GitHub 연동 Vercel Hosting
 - 별도의 서버 API, 데이터베이스, 유료 AI API 없음
 
-Node.js 20.9 이상에서:
+Node.js 22 LTS와 npm을 권장합니다(최소 Node.js 20.9).
 
 ```sh
+git clone https://github.com/YelloWriter/CareBrife.git
+cd CareBrife
 npm ci
 npm run dev
+```
+
+`http://localhost:3000`에서 확인합니다. 프로덕션 빌드를 확인하려면 개발 서버를 종료한 뒤:
+
+```sh
 npm run typecheck
 npm run build
 npm run preview
@@ -69,7 +76,7 @@ npm test
 
 기존 Chromium을 사용하려면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`에 실행 파일의 절대 경로를 지정합니다. 테스트는 빌드 결과를 제공하는 정적 서버를 시작하거나 실행 중인 3000번 포트 서버를 사용합니다. `TEST_BASE_URL`로 배포 URL을 지정하면 로컬 서버 없이 해당 배포를 검사합니다.
 
-테스트 범위: 랜딩 CTA, 글 입력·수정·완료·읽기, 빈 입력 차단, 원문 보존과 모델 결과 검증, 음성 미지원 대체, 모의 음성 이벤트와 5분 종료, 처리 시간 초과 복구, PDF 오류, 나가기 대화상자, 뒤로 가기, 모바일/데스크톱 넘침, 영어 랜딩, 인쇄 PDF 생성. 실제 마이크 인식 품질과 실제 기기의 WebGPU 모델 다운로드·추론은 별도 기기 확인이 필요합니다.
+테스트 범위: 랜딩 CTA, 글 입력·수정·완료·읽기, 빈 입력 차단, 원문 보존과 모델 결과 검증, 음성 미지원 대체, 모의 음성 이벤트와 5분 종료, 처리 시간 초과 복구, PDF 오류, 나가기 대화상자, 뒤로 가기, 모바일/데스크톱 넘침, 영어 랜딩, 실제 PDF 다운로드·한글 및 페이지 나눔·재시도·생성 취소. 실제 마이크 인식 품질과 실제 기기의 WebGPU 모델 다운로드·추론은 별도 기기 확인이 필요합니다.
 
 음성 회귀 검사에는 서비스 연결 실패→기기 내 녹음→확인·완료, 마이크 해제, worker 취소, 권한 거부, 무음 차단이 포함됩니다. `LOCAL_ASR_FIXTURE=/absolute/path/synthetic-korean.wav npm test -- tests/local-speech.spec.ts`로 실제 WASM 모델까지 검증합니다. 해당 선택 검사는 **합성 한국어 음성 파일**을 사용하고 모델을 다운로드하므로 기본 CI에서는 생략합니다. 사용자 음성·건강정보를 테스트 파일로 저장하지 않습니다.
 
@@ -77,13 +84,13 @@ npm test
 
 ## 배포
 
-- GitHub: https://github.com/YelloWriter/carebrief
+- GitHub: https://github.com/YelloWriter/CareBrife
 - Vercel 배포 URL: **https://carebrief-iota.vercel.app**
 - Framework Preset: Next.js / Root Directory: 저장소 루트 / Build: `npm run build`
 - Output Directory: Vercel 기본 자동 감지. Next 정적 export 설정이 `out/`을 생성합니다.
 - 필수 환경변수 없음. 커스텀 도메인은 `NEXT_PUBLIC_SITE_URL`에 공개 origin을 지정합니다.
 
-Vercel에서 위 GitHub 저장소를 Import하고 운영 브랜치를 `main`으로 지정합니다. 이후 GitHub의 `main` 변경이 자동으로 운영에 배포됩니다. 다른 브랜치는 미리보기 배포에 사용합니다. GitHub 앱 접근 권한, 배포 보호 및 평가자 접근 여부는 제출 전에 확인합니다.
+Vercel에서 위 GitHub 저장소를 Import하고 운영 브랜치를 `main`으로 지정합니다. 이후 GitHub의 `main` 변경이 자동으로 운영에 배포됩니다. 다른 브랜치는 미리보기 배포에 사용합니다. 제출 저장소는 **Public**이며 별도 GitHub 초대 없이 열람할 수 있습니다.
 
 기존 Firebase 설정은 호환용으로 남아 있으며 이번 제출 대상은 Vercel입니다.
 
@@ -104,3 +111,14 @@ Vercel에서 위 GitHub 저장소를 Import하고 운영 브랜치를 `main`으�
 언어 전환은 `/`와 `/en/` 사이를 이동합니다. 작성 중이라면 브라우저의 나가기 경고가 표시되며, 실제로 이동하면 메모리의 초안이 사라집니다.
 
 Lighthouse: `npm run audit:lighthouse` (먼저 빌드·미리보기 실행). 결과는 `.lighthouse/`에 저장합니다. `AUDIT_URL`로 배포 URL도 검사할 수 있습니다.
+
+## 구현한 인터랙션과 모션
+
+- **페이지 안 CTA 이동:** 헤더와 히어로에서 작성 섹션으로 부드럽게 이동하고 작성 중 초안을 유지합니다.
+- **스크롤 등장:** 섹션 제목과 카드를 18px 올리며 나타내고, 같은 그룹은 60ms 간격으로 차례로 표시합니다. 한 번 보인 콘텐츠는 다시 숨기지 않습니다.
+- **접근성:** 키보드로 포커스한 콘텐츠는 즉시 표시하고, OS의 `prefers-reduced-motion` 변경도 실시간으로 반영합니다. JavaScript가 꺼져도 랜딩 정보는 보입니다.
+- **네 단계 일러스트:** 말하기·확인·정리·진료실 전달 모션, 화면 밖 정지 및 사용자의 일시 정지.
+- **작성 도구:** 녹음 시작/종료 토글, 글 입력, 내용 수정, 권한 안내 모달, 크게 보기, PDF 다운로드·재시도, 나가기 확인.
+- **FAQ와 언어 전환:** 키보드로 펼칠 수 있는 질문 목록, 한국어/영어 랜딩.
+
+최신 Lighthouse 측정 조건·점수·개선 내용은 [품질 점검 기록](docs/lighthouse.md)에 있습니다. 점수는 실험실 측정값이며 실제 사용자 환경에 따라 달라집니다. `AUDIT_URL=https://carebrief-iota.vercel.app AUDIT_OUTPUT_DIR=.lighthouse/production npm run audit:lighthouse`로 재측정할 수 있습니다. 브라우저를 자동으로 찾지 못하면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`에 Chrome 실행 파일 경로를 지정하세요.

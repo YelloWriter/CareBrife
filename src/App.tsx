@@ -1,5 +1,6 @@
 "use client";
 
+import { useScrollReveal } from "./lib/use-scroll-reveal";
 import { Brand } from "./components/landing/shared";
 import FAQSection from "./components/landing/FAQSection";
 import CTASection from "./components/landing/CTASection";
@@ -38,6 +39,7 @@ const getLanguageFromLocation = (): Language => {
 function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
   const [language, setLanguage] = useState<Language>(initialLanguage);
   const appRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(appRef);
   const originalTextNodesRef = useRef(new WeakMap<Text, string>());
   const originalAttributesRef = useRef(new WeakMap<Element, Record<string, string>>());
   const changeLanguage = (nextLanguage: Language) => {
@@ -58,6 +60,8 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
       languageOptions.find((option) => option.code === language)?.htmlLang ??
       "ko";
     document.documentElement.lang = htmlLanguage;
+    // Korean is the source markup; it needs no DOM translation observer.
+    if (language === "ko") return;
 
 
     let animationFrame = 0;
@@ -86,16 +90,10 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
 
           const normalized = normalizeInterfaceText(originalValue);
           if (normalized) {
-            const translated =
-              language === "ko"
-                ? originalValue
-                : translateInterfaceText(normalized, language);
+            const translated = translateInterfaceText(normalized, language);
             const leading = originalValue.match(/^\s*/)?.[0] ?? "";
             const trailing = originalValue.match(/\s*$/)?.[0] ?? "";
-            const nextValue =
-              language === "ko"
-                ? originalValue
-                : `${leading}${translated}${trailing}`;
+            const nextValue = `${leading}${translated}${trailing}`;
             if (textNode.nodeValue !== nextValue) {
               textNode.nodeValue = nextValue;
             }
@@ -124,10 +122,7 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
               stored[attribute] = currentValue;
             }
             const originalValue = stored[attribute];
-            const translated =
-              language === "ko"
-                ? originalValue
-                : translateInterfaceText(originalValue, language);
+            const translated = translateInterfaceText(originalValue, language);
             if (currentValue !== translated) {
               element.setAttribute(attribute, translated);
             }
@@ -157,65 +152,6 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
     };
   }, [language]);
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    const revealTargets = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        [
-          ".section-heading",
-          ".empathy-grid > *",
-          ".empathy-summary",
-          ".methods-grid > *",
-          ".methods-summary",
-          ".value-grid > *",
-          ".value-note",
-          ".step-grid > *",
-          ".care-journey",
-          ".privacy-heading",
-          ".privacy-card-grid > *",
-          ".privacy-bottom",
-          ".workspace-heading",
-          ".story-input-card",
-          ".workspace-beta-card",
-          ".form-card",
-          ".preview-pane",
-          ".beta-fit-list > *",
-          ".beta-fit-note",
-          ".beta-process-grid > *",
-          ".beta-process-note",
-          ".beta-section > *",
-          ".faq-list > *",
-        ].join(","),
-      ),
-    );
-
-    revealTargets.forEach((target, index) => {
-      target.classList.add("scroll-reveal");
-      target.style.setProperty("--reveal-delay", `${(index % 5) * 65}ms`);
-    });
-
-    if (prefersReducedMotion || !("IntersectionObserver" in window)) {
-      revealTargets.forEach((target) => target.classList.add("is-visible"));
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        });
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -44px" },
-    );
-
-    revealTargets.forEach((target) => observer.observe(target));
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const progress = document.querySelector<HTMLElement>(
@@ -255,7 +191,7 @@ function App({ initialLanguage = "ko" }: { initialLanguage?: Language }) {
       </div>
       <header className="site-header">
         <a className="brand-link" href="#top" aria-label="진료한장 홈">
-          <Brand compact />
+          <Brand compact priority />
         </a>
         <nav aria-label="주요 메뉴">
           <a href="#how-it-works">이용 방법</a>

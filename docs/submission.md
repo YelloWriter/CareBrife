@@ -27,9 +27,11 @@
 - 결과물에 실제 사용자의 건강정보나 계정 비밀값을 포함하지 않습니다.
 
 ## 배포
-GitHub: https://github.com/YelloWriter/carebrief
+GitHub: https://github.com/YelloWriter/CareBrife
 Vercel: https://carebrief-iota.vercel.app
-Vercel 사이트: 로그인 없이 접근 확인. GitHub 저장소: 비공개 유지, 평가자 GitHub 계정 초대 또는 공개 전환은 소유자가 선택해야 합니다.
+Vercel 사이트: 로그인 없이 접근 확인. 제출 GitHub 저장소 `YelloWriter/CareBrife`: Public, 평가자 초대 없이 열람 가능.
+
+2026-09-28 최신 품질 개선과 운영 사이트 Lighthouse 기록: [lighthouse.md](lighthouse.md). 아래의 최초 전환 기록은 이전 저장소에서 수행한 이력입니다.
 
 ## Lighthouse 개선 전
 로컬 프로덕션 빌드 기준: 모바일 성능 66 / 접근성 96 / 권장사항 100 / SEO 100, 데스크톱 99 / 96 / 100 / 100.

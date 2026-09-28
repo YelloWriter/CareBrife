@@ -28,7 +28,7 @@ function Button({ children, onClick, secondary = false, disabled = false }: { ch
   return <UIButton type="button" size="flow" variant={secondary ? "outline" : "default"} className={`bf-button${secondary ? " bf-secondary" : ""}`} onClick={onClick} disabled={disabled}>{children}</UIButton>;
 }
 function Prompt() { return <div className="bf-prompt"><strong>이번 진료에서</strong><p>설명하고 싶은 상태와 그동안의 변화를<br />편하게 알려주세요.</p></div>; }
-function Logo() { return <img className="bf-logo" src="/figma/logo.png" width="140" height="41" alt="진료한장 - 진료보다 먼저 도착하는 마음" />; }
+function Logo() { return <img className="bf-logo" src="/figma/logo.webp" width="140" height="41" alt="진료한장 - 진료보다 먼저 도착하는 마음" />; }
 function Report({ brief, large = false }: { brief: Brief; large?: boolean }) {
   return <article className={`bf-report${large ? " bf-report-large" : ""}`} aria-label="진료한장 리포트">
     {!large && <header><Logo /><span>오늘 작성</span></header>}

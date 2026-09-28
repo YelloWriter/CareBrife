@@ -1,0 +1,41 @@
+{
+  "url": "https://carebrief-iota.vercel.app",
+  "runs": [
+    {
+      "mode": "mobile",
+      "lighthouseVersion": "13.5.0",
+      "measuredAt": "2026-09-28T06:35:40.242Z",
+      "scores": {
+        "performance": 97,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "first-contentful-paint": 1671.717,
+        "largest-contentful-paint": 2346.717,
+        "total-blocking-time": 103,
+        "cumulative-layout-shift": 0,
+        "speed-index": 1771.1548035035937
+      }
+    },
+    {
+      "mode": "desktop",
+      "lighthouseVersion": "13.5.0",
+      "measuredAt": "2026-09-28T06:35:49.065Z",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "first-contentful-paint": 377.4614,
+        "largest-contentful-paint": 477.4614,
+        "total-blocking-time": 0,
+        "cumulative-layout-shift": 6.7e-05,
+        "speed-index": 377.4614
+      }
+    }
+  ]
+}

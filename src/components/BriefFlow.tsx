@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { arrangeSentences, emptyBrief, organizeStory } from "../lib/brief";
 import type { Brief } from "../lib/brief";
+import { recordLocally, transcribeLocally } from "../lib/local-speech";
+import type { AudioCapture } from "../lib/local-speech";
 import "./brief-flow.css";
 import MicrophoneHelp from "./MicrophoneHelp";
 import { Button as UIButton } from "./ui/button";
@@ -48,6 +50,11 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
   const [exitOpen, setExitOpen] = useState(false);
   const [permissionHelpOpen, setPermissionHelpOpen] = useState(false);
   const [pendingVoice, setPendingVoice] = useState(false);
+  const [localVoice, setLocalVoice] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const preferLocal = useRef(false);
+  const localCapture = useRef<AudioCapture | null>(null);
+  const captureController = useRef<AbortController | null>(null);
   const screenRef = useRef<Screen>("start");
   const recognition = useRef<Recognition | null>(null);
   const recorded = useRef("");
@@ -73,6 +80,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
     if (next !== "recording") scrollToFlow();
   }
   function stopRecognition() {
+    captureController.current?.abort(); captureController.current = null; localCapture.current = null;
     const current = recognition.current;
     recognition.current = null;
     if (current) { current.onend = null; current.onresult = null; current.onerror = null; current.onstart = null; current.abort(); }
@@ -94,21 +102,21 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
   }, []);
   useEffect(() => { if (screen !== "recording" && (!embedded || screen !== "start")) heading.current?.focus({ preventScroll: true }); }, [screen, embedded]);
   useEffect(() => {
-    if (!dirty && screen !== "recording") return;
+    if (!dirty && screen !== "recording" && !transcribing) return;
     const protect = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", protect);
     return () => window.removeEventListener("beforeunload", protect);
-  }, [dirty, screen]);
+  }, [dirty, screen, transcribing]);
   useEffect(() => {
     if (screen !== "recording") return;
     const started = Date.now();
     const timer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - started) / 1000);
       setSeconds(Math.min(elapsed, 300));
-      if (elapsed >= 300) recognition.current?.stop();
+      if (elapsed >= 300) finishRecording();
     }, 250);
     return () => window.clearInterval(timer);
-  }, [screen]);
+  }, [screen, localVoice]);
   useEffect(() => {
     if (exitOpen) dialog.current?.showModal();
     else dialog.current?.close();
@@ -118,36 +126,108 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
     if (!text.trim()) return;
     operation.current?.abort();
     const controller = new AbortController(); operation.current = controller;
-    setProgress(5); setStatus("입력하신 문장을 확인하고 있어요."); navigate("processing");
+    setTranscribing(false); setProgress(5); setStatus("입력하신 문장을 확인하고 있어요."); navigate("processing");
+    const recover = () => {
+      setBrief(arrangeSentences(text));
+      setStatus("AI 정리를 마치지 못해 원문을 문장 기준으로 나눴어요. 내용과 항목을 확인하고 고쳐주세요.");
+      setProgress(100); navigate("review", true);
+    };
     const timeout = window.setTimeout(() => {
       if (controller.signal.aborted) return;
-      controller.abort(); setDetail("정리가 오래 걸려 중단했어요. 다시 시도하거나 직접 작성할 수 있어요."); navigate("organize-error", true);
+      controller.abort(); recover();
     }, 90_000);
     try {
       const result = await organizeStory(text, (n, message) => { if (!controller.signal.aborted) { setProgress(n); setStatus(message); } }, controller.signal);
       if (controller.signal.aborted) return;
       setBrief(result.brief); setStatus(result.method); setProgress(100); navigate("review", true);
     } catch {
-      if (!controller.signal.aborted) { setDetail(""); navigate("organize-error", true); }
+      if (!controller.signal.aborted) recover();
     } finally { window.clearTimeout(timeout); }
   }
+  function finishRecording() {
+    if (localCapture.current) localCapture.current.stop();
+    else recognition.current?.stop();
+  }
+  async function startLocalRecording(prefix = story) {
+    stopRecognition();
+    const controller = new AbortController(); captureController.current = controller;
+    setPendingVoice(true); setLocalVoice(true);
+    const failed = () => {
+      if (controller.signal.aborted) return;
+      stopRecognition(); setDetail("마이크 녹음이 중단됐어요. 연결과 권한을 확인한 뒤 다시 시도해 주세요."); navigate("speech-error", true);
+    };
+    try {
+      localCapture.current = await recordLocally(controller.signal, audio => {
+        localCapture.current = null;
+        void finishLocalRecording(audio, prefix, controller);
+      }, failed);
+      if (controller.signal.aborted) return;
+      setPendingVoice(false); setSeconds(0); navigate("recording", true);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      stopRecognition();
+      setDetail(error instanceof DOMException && error.name === "NotAllowedError"
+        ? "마이크 권한이 허용되지 않았어요. 권한 설정 확인하기를 눌러 안내를 확인해 주세요."
+        : "이 브라우저에서 마이크를 사용할 수 없어요. 마이크 연결을 확인하거나 Chrome 또는 Safari에서 열어주세요.");
+      navigate("speech-error", true);
+    }
+  }
+  async function finishLocalRecording(audio: Blob, prefix: string, controller: AbortController) {
+    operation.current?.abort(); operation.current = controller;
+    setTranscribing(true); setProgress(5); setStatus("녹음한 말을 기기 안에서 준비하고 있어요."); navigate("processing", true);
+    try {
+      const text = await transcribeLocally(audio, message => {
+        if (!controller.signal.aborted) setStatus(message);
+      }, controller.signal);
+      if (controller.signal.aborted) return;
+      if (!text) throw new Error("no-speech");
+      const combined = [prefix, text].filter(Boolean).join("\n");
+      setStory(combined);
+      // Show the transcription before any further AI work so it can be corrected.
+      setBrief(arrangeSentences(combined)); setProgress(100);
+      setStatus("기기 안에서 받아쓴 글을 문장 기준으로 나눴어요. 잘못 들은 말이나 날짜를 확인하고 고쳐주세요.");
+      navigate("review", true);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setDetail(error instanceof Error && error.message === "no-speech"
+        ? "녹음에서 인식할 말을 찾지 못했어요. 마이크 가까이에서 다시 말씀해 주세요."
+        : "기기 내 음성 인식을 마치지 못했어요. 처음에는 모델 다운로드에 인터넷 연결이 필요해요. 짧게 다시 녹음하거나 글로 입력해 주세요.");
+      navigate("speech-error", true);
+    } finally { if (!controller.signal.aborted) setTranscribing(false); }
+  }
   function startRecording() {
-    if (pendingVoice || recognition.current) return;
+    if (pendingVoice || recognition.current || localCapture.current) return;
     const speechWindow = window as typeof window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
     const Constructor = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
-    if (!Constructor) { setDetail("이 브라우저는 음성 입력을 지원하지 않아요. 글로 입력해 주세요."); navigate("speech-error"); return; }
+    if (!Constructor || preferLocal.current) { void startLocalRecording(); return; }
+    setLocalVoice(false);
     recorded.current = ""; recognitionFailed.current = false;
     const instance = new Constructor(); recognition.current = instance;
     instance.lang = "ko-KR"; instance.continuous = true; instance.interimResults = true;
     instance.onstart = () => { setPendingVoice(false); setSeconds(0); navigate("recording"); };
     instance.onresult = event => {
-      recorded.current = Array.from(event.results).filter(r => r.isFinal).map(r => r[0].transcript).join(" ");
+      // Each result event is the latest complete snapshot. Retain interim words
+      // too, since some browsers end without sending a final result event.
+      recorded.current = Array.from(event.results).map(r => r[0].transcript).join(" ");
     };
     instance.onerror = event => {
       recognitionFailed.current = true;
-      if (recorded.current.trim()) setStory(prev => [prev, recorded.current.trim()].filter(Boolean).join("\n"));
+      const preserved = [story, recorded.current.trim()].filter(Boolean).join("\n");
+      if (recorded.current.trim()) setStory(preserved);
+      if (["network", "service-not-allowed", "language-not-supported"].includes(event.error)) {
+        preferLocal.current = true;
+        void startLocalRecording(preserved);
+        return;
+      }
       setPendingVoice(false);
-      setDetail(event.error === "not-allowed" ? "마이크 권한이 허용되지 않았어요. 브라우저 설정에서 권한을 확인하거나 글로 입력해 주세요." : "음성 입력이 중단됐어요. 다시 시도하거나 글로 입력해 주세요.");
+      const reasons: Record<string, string> = {
+        "not-allowed": "마이크 권한이 허용되지 않았어요. 브라우저 설정에서 권한을 확인하거나 글로 입력해 주세요.",
+        "service-not-allowed": "이 브라우저에서 음성 인식 서비스를 사용할 수 없어요. Chrome 또는 Safari에서 열거나 글로 입력해 주세요.",
+        "network": "음성 인식 서비스에 연결하지 못했어요. 인터넷 연결을 확인하거나 글로 입력해 주세요.",
+        "audio-capture": "마이크를 찾지 못했어요. 마이크 연결과 기기의 입력 설정을 확인해 주세요.",
+        "no-speech": "인식된 말이 없어요. 마이크 가까이에서 다시 말씀하거나 글로 입력해 주세요.",
+      };
+      setDetail(reasons[event.error] || "음성 입력이 중단됐어요. 다시 시도하거나 글로 입력해 주세요.");
       stopRecognition(); navigate("speech-error", true);
     };
     instance.onend = () => {
@@ -171,7 +251,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
   }
   function requestExit() {
     if (!embedded) window.scrollTo({ top: 0, behavior: "instant" });
-    if (dirty || screen === "recording") setExitOpen(true);
+    if (dirty || screen === "recording" || transcribing) setExitOpen(true);
     else { stopRecognition(); returnToLanding(); }
   }
   function returnToLanding() {
@@ -213,16 +293,16 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
         <Prompt />{screen === "recording" ? <div className="bf-tabs bf-recording-tabs"><span>● 녹음 중</span><span>다시 누르면 종료</span></div> : tabs()}
         {screen !== "text" ? <>
           <div className="bf-voice-action">
-            <button className={`bf-mic${screen === "recording" ? " is-recording" : ""}`} aria-label={screen === "recording" ? "녹음 마치기" : "녹음 시작"} aria-pressed={screen === "recording"} onClick={() => screen === "recording" ? recognition.current?.stop() : startRecording()} disabled={pendingVoice}>
+            <button className={`bf-mic${screen === "recording" ? " is-recording" : ""}`} aria-label={screen === "recording" ? "녹음 마치기" : "녹음 시작"} aria-pressed={screen === "recording"} onClick={() => screen === "recording" ? finishRecording() : startRecording()} disabled={pendingVoice}>
               {screen === "recording" ? <span className="bf-stop-symbol" aria-hidden="true" /> : <img src="/figma/microphone.svg" alt="" width="58" height="58" />}
             </button>
             <strong>{pendingVoice ? "마이크 권한을 확인해 주세요" : screen === "recording" ? "한 번 더 눌러 녹음 마치기" : "한 번 눌러 말하기"}</strong>
             {screen === "recording" ? <output className="bf-voice-timer" aria-label="녹음 시간">{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</output> : <p>최대 5분 · 다시 누르면 종료</p>}
           </div>
-          {screen === "recording" ? <p className="bf-recording-limit">5분이 되면 자동으로 종료돼요.</p> : <Button secondary onClick={() => { stopRecognition(); navigate("text"); }}>글로 입력하기</Button>}
+          {screen === "recording" ? <><p className="bf-recording-limit">5분이 되면 자동으로 종료돼요.</p>{localVoice && <p className="bf-notice" role="status">기기 내 녹음으로 시작했어요. 지금부터 말씀해 주세요.<br />녹음을 마치면 글로 바꿔요. 처음에는 모델 다운로드가 필요해요.</p>}</> : <Button secondary onClick={() => { stopRecognition(); navigate("text"); }}>글로 입력하기</Button>}
 
           <p className="bf-footnote">진료한장은 녹음 파일을 저장하지 않아요.</p>
-          <details className="bf-voice-privacy"><summary>음성 입력 안내</summary><p>음성은 브라우저 제공업체에서 처리될 수 있어요. 음성 입력을 시작하면 마이크 권한을 요청해요. 원하지 않으면 글로 입력해 주세요.</p></details>
+          <details className="bf-voice-privacy"><summary>음성 입력 안내</summary><p>음성은 브라우저 제공업체에서 처리될 수 있어요. 연결되지 않으면 기기 내 녹음으로 전환해요. 이때 음성은 외부로 보내지 않으며 처리 후 메모리에서 지워요. 처음에는 공개 음성 인식 모델을 내려받아요. 음성 입력을 시작하면 마이크 권한을 요청해요.</p></details>
         </> : <>
           <div className="bf-textarea"><textarea aria-label="전하고 싶은 이야기" value={story} maxLength={5000} onChange={e => setStory(e.target.value)} placeholder="예: 지난주부터 계단을 내려갈 때 왼쪽 무릎이 불편해요. 어제는 걷다가도 뻐근했어요." /><span>{story.length}자</span></div>
           <Button disabled={!story.trim()} onClick={() => void organize()}>내용 정리하기</Button>
@@ -230,7 +310,7 @@ export default function BriefFlow({ embedded = false }: { embedded?: boolean }) 
         </>}
       </>}
       {screen === "processing" && <>
-        {title("내용을 정리하고 있어요")}<p className="bf-processing-intro">입력하신 말에서 중요한 내용과 변화를 나누고 있어요.</p>
+        {title(transcribing ? "말을 글로 바꾸고 있어요" : "내용을 정리하고 있어요")}<p className="bf-processing-intro">{transcribing ? "녹음한 음성은 기기 안에서 처리돼요. 잠시만 기다려 주세요." : "입력하신 말에서 중요한 내용과 변화를 나누고 있어요."}</p>
         <div className="bf-processing-icon" aria-hidden="true">✦</div><progress max="100" value={progress} aria-label="정리 진행률" /><p className="bf-processing-wait" role="status">{status || "이 화면을 잠시 기다려 주세요."}</p>
         <div className="bf-processing-bottom"><button className="bf-text-link" onClick={manual}>기다리지 않고 직접 작성하기</button><p className="bf-footnote">처리 중 나가면 현재 내용이 사라질 수 있어요.</p></div>
       </>}

@@ -92,7 +92,16 @@ npm test
 
 Vercel에서 위 GitHub 저장소를 Import하고 운영 브랜치를 `main`으로 지정합니다. 이후 GitHub의 `main` 변경이 자동으로 운영에 배포됩니다. 다른 브랜치는 미리보기 배포에 사용합니다. 제출 저장소는 **Public**이며 별도 GitHub 초대 없이 열람할 수 있습니다.
 
-기존 Firebase 설정은 호환용으로 남아 있으며 이번 제출 대상은 Vercel입니다.
+기존 커스텀 도메인 **https://carebrief.co.kr**도 동일한 Next.js 코드를 Firebase Hosting에서 제공합니다. Firebase 프로젝트·사이트는 `carebrief-co-kr`이며, 기존 저장소는 [YelloWriter/carebrief](https://github.com/YelloWriter/carebrief)입니다. 두 저장소의 최신 코드를 동기화했습니다.
+
+Vercel은 GitHub push로 자동 배포됩니다. Firebase는 CLI로 별도 배포하므로 **기존 저장소에 push만 해서는 도메인 화면이 바뀌지 않습니다.** 로그인된 Firebase 계정에서 아래 명령으로 도메인용 메타데이터까지 빌드합니다.
+
+```sh
+NEXT_PUBLIC_SITE_URL=https://carebrief.co.kr npm run build
+npx firebase-tools@15.31.0 deploy --only hosting --project carebrief-co-kr
+```
+
+페이지·고정 이름 자산은 매번 재검증하고 해시가 붙은 `/_next/static/` 자산만 장기 캐시합니다. [기존 도메인 배포 기록](docs/firebase-domain.md)을 참고하세요.
 
 베타 신청 링크는 기존 `src/components/landing/shared.tsx`의 `BETA_FORM_URL`을 사용합니다. 입력 내용은 React 메모리에만 있으며 localStorage, sessionStorage, 서버 로그 또는 DB에 기록하지 않습니다. 다운로드된 모델 자산은 WebLLM이 브라우저에 캐시할 수 있습니다.
 

@@ -9,7 +9,7 @@
 - `src/components/ui`: 공식 shadcn 레지스트리에서 가져와 브랜드에 맞춘 공통 UI.
 - `BriefFlow`: 13개 Figma 화면의 상태·입력·오류 복구. `MicrophoneHelp`: 권한 안내.
 - `src/lib/brief.ts`: 사용자 원문 보존과 분류 결과 검증.
-- 정적 내보내기 `out/`, GitHub 연동 Vercel 배포. 기존 Firebase 설정은 호환용.
+- 정적 내보내기 `out/`, GitHub 연동 Vercel 배포. 기존 도메인 carebrief.co.kr은 Firebase Hosting(carebrief-co-kr)에 별도 CLI 배포하며 GitHub push만으로 갱신되지는 않습니다.
 
 ## 디자인 원칙
 - 종이색 `#f8f7f3`, 본문 `#33445e`, 브랜드 블루 `#536db6`, 시안 `#48b1df`.

@@ -63,3 +63,11 @@ Vercel 사이트: 로그인 없이 접근 확인. 제출 GitHub 저장소 `Yello
 https://vercel.com/tom-f7d5/carebrief/deployments?environment=production
 
 검증 명령: `TEST_BASE_URL=https://carebrief-iota.vercel.app npm test`.
+
+## 공개 제출 저장소 연결
+
+- 제출 저장소: https://github.com/YelloWriter/CareBrife — Public, 기본 브랜치 `main`.
+- 2026-09-28 기존 Vercel 프로젝트의 Git 연결을 `YelloWriter/CareBrife`로 변경. 도메인 `https://carebrief-iota.vercel.app` 유지.
+- 코드 이력을 보존해 업로드했으며, 19개 기존 커밋의 158개 고유 파일에서 대표적인 비밀키 패턴이 검출되지 않았습니다. 패턴 검사는 완전한 보안 감사를 의미하지 않습니다.
+- 로컬 타입 검사·프로덕션 빌드 통과. 회귀 시나리오 23개 확인, 외부 모델을 내려받는 실제 음성 선택 검사 1개는 생략. 새 모션 테스트는 데스크톱 메뉴 크기를 명시해 2개 재검사 통과.
+- 모바일 390px·데스크톱 1440px 화면을 직접 확인했고, 기존 320~1440px 가로 넘침 검사도 통과했습니다.

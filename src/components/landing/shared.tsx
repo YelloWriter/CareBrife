@@ -8,6 +8,8 @@ export function Brand({ compact = false, priority = false }: { compact?: boolean
       <img
         className="brand-logo"
         src="/figma/logo.webp"
+        srcSet="/figma/logo-small.webp 176w, /figma/logo.webp 340w"
+        sizes={compact ? "(max-width: 640px) 152px, 176px" : "210px"}
         fetchPriority={priority ? "high" : "auto"}
         width="340"
         height="100"

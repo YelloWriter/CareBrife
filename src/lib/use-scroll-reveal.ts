@@ -26,14 +26,16 @@ export function useScrollReveal(rootRef: RefObject<HTMLElement | null>) {
       entries.forEach(entry => { if (entry.isIntersecting) show(entry.target); });
     }, { threshold: 0, rootMargin: "0px 0px -24px" });
     const siblings = new Map<Element, number>();
-    elements.forEach(element => {
+    // Batch layout reads before class/style writes to avoid layout thrashing.
+    const alreadyOnScreen = elements.map(element => element.getBoundingClientRect().top < window.innerHeight);
+    elements.forEach((element, position) => {
       const parent = element.parentElement!;
       const index = siblings.get(parent) ?? 0;
       siblings.set(parent, index + 1);
       // Start each group together; long lists never accumulate a long wait.
       element.style.setProperty("--reveal-delay", `${Math.min(index, 3) * 60}ms`);
       element.classList.add("scroll-reveal");
-      if (element.getBoundingClientRect().top < window.innerHeight) show(element);
+      if (alreadyOnScreen[position]) show(element);
       else observer.observe(element);
     });
     const onPreferenceChange = () => {

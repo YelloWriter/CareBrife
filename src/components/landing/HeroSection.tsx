@@ -93,10 +93,12 @@ export default function HeroSection({ language, changeLanguage }: { language: La
             <div className="hero-paper-stage" aria-hidden="true">
               <div className="hero-paper-card">
                 <img
-                  src="/jinryo-hanjang-symbol-cropped.png"
+                  src="/symbol.webp"
+                  srcSet="/symbol-small.webp 96w, /symbol.webp 192w"
+                  sizes="96px"
                   alt=""
-                  width="120"
-                  height="92"
+                  width="192"
+                  height="166"
                 />
                 <div className="hero-paper-rule hero-paper-rule-strong" />
                 <div className="hero-paper-lines">

@@ -4,8 +4,10 @@
 
 ## 기술 및 실행
 
-- Next.js 16 App Router, React 19, TypeScript, 기존 CSS와 lucide-react
-- Next.js 정적 내보내기(`output: "export"`) → `out/` → 기존 Firebase Hosting
+- Next.js 16 App Router, React 19, TypeScript
+- Tailwind CSS 4, shadcn/ui (Radix Button·Card), lucide-react
+- Playwright 사용자 흐름 검증, Lighthouse 품질 점검
+- Next.js 정적 내보내기(`output: "export"`) → `out/` → GitHub 연동 Vercel Hosting
 - 별도의 서버 API, 데이터베이스, 유료 AI API 없음
 
 Node.js 20.9 이상에서:
@@ -20,7 +22,7 @@ npm run preview
 
 경로는 `/`(한국어 랜딩), `/en/`(영어 랜딩), `/create/`(새 한국어 작성 흐름)입니다. 랜딩의 ‘진료한장 만들어보기’ 버튼은 같은 페이지의 `#create-report` 섹션으로 부드럽게 스크롤합니다. 작성·수정·완료는 그 섹션 안에서 진행되고 다른 랜딩 섹션을 보아도 입력은 유지됩니다. `/create/`는 작성 화면의 직접 접근 주소로도 유지합니다.
 
-`NEXT_PUBLIC_SITE_URL`을 설정하면 소셜 미리보기의 기준 URL을 변경할 수 있습니다. 기본값은 기존 Firebase 프로젝트의 `https://carebrief-co-kr.web.app`입니다.
+`NEXT_PUBLIC_SITE_URL`을 설정하면 소셜 미리보기의 기준 URL을 변경할 수 있습니다. Vercel에서는 제공되는 운영 도메인을 자동으로 사용하고, 로컬에서는 `http://localhost:3000`을 사용합니다. `.env.example`을 참고하세요. 비밀키가 필요한 기능은 없습니다.
 
 ## 새 작성 흐름
 
@@ -48,10 +50,11 @@ WebGPU 미지원 기기에서는 원문 문장을 규칙으로 나누고, 확인
 
 ```sh
 npx playwright install chromium
+npm run build
 npm test
 ```
 
-기존 Chromium을 사용하려면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`에 실행 파일의 절대 경로를 지정합니다. 테스트는 로컬 서버를 시작하거나 실행 중인 3000번 포트 서버를 사용합니다.
+기존 Chromium을 사용하려면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`에 실행 파일의 절대 경로를 지정합니다. 테스트는 빌드 결과를 제공하는 정적 서버를 시작하거나 실행 중인 3000번 포트 서버를 사용합니다. `TEST_BASE_URL`로 배포 URL을 지정하면 로컬 서버 없이 해당 배포를 검사합니다.
 
 테스트 범위: 랜딩 CTA, 글 입력·수정·완료·읽기, 빈 입력 차단, 원문 보존과 모델 결과 검증, 음성 미지원 대체, 모의 음성 이벤트와 5분 종료, 처리 시간 초과 복구, PDF 오류, 나가기 대화상자, 뒤로 가기, 모바일/데스크톱 넘침, 영어 랜딩, 인쇄 PDF 생성. 실제 마이크 인식 품질과 실제 기기의 WebGPU 모델 다운로드·추론은 별도 기기 확인이 필요합니다.
 
@@ -59,17 +62,30 @@ npm test
 
 ## 배포
 
-`firebase.json`은 `out/`을 제공하며, 예전 Vite SPA rewrite는 제거했습니다. 빌드 시 각 경로의 HTML이 생성됩니다.
+- GitHub: https://github.com/YelloWriter/carebrief
+- Vercel 배포 URL: 연결·배포 확인 후 기록 예정
+- Framework Preset: Next.js / Root Directory: 저장소 루트 / Build: `npm run build`
+- Output Directory: Vercel 기본 자동 감지. Next 정적 export 설정이 `out/`을 생성합니다.
+- 필수 환경변수 없음. 커스텀 도메인은 `NEXT_PUBLIC_SITE_URL`에 공개 origin을 지정합니다.
 
-```sh
-npm run build
-firebase deploy --only hosting
-```
+Vercel에서 위 GitHub 저장소를 Import하고 운영 브랜치를 `main`으로 지정합니다. 이후 GitHub의 `main` 변경이 자동으로 운영에 배포됩니다. 다른 브랜치는 미리보기 배포에 사용합니다. GitHub 앱 접근 권한, 배포 보호 및 평가자 접근 여부는 제출 전에 확인합니다.
 
-배포 대상은 기존 `.firebaserc`의 `carebrief-co-kr` 프로젝트입니다. 이 변경 작업에서는 운영 배포를 수행하지 않습니다.
+기존 Firebase 설정은 호환용으로 남아 있으며 이번 제출 대상은 Vercel입니다.
 
-베타 신청 링크는 기존 `src/App.tsx`의 `BETA_FORM_URL`을 사용합니다. 입력 내용은 React 메모리에만 있으며 localStorage, sessionStorage, 서버 로그 또는 DB에 기록하지 않습니다. 다운로드된 모델 자산은 WebLLM이 브라우저에 캐시할 수 있습니다.
+베타 신청 링크는 기존 `src/components/landing/shared.tsx`의 `BETA_FORM_URL`을 사용합니다. 입력 내용은 React 메모리에만 있으며 localStorage, sessionStorage, 서버 로그 또는 DB에 기록하지 않습니다. 다운로드된 모델 자산은 WebLLM이 브라우저에 캐시할 수 있습니다.
 
 ## 이용 방법 일러스트
 
 네 단계의 그림은 내장 imagegen 도구로 생성한 투명 배경 이미지입니다. `public/illustrations/`의 WebP 자산을 사용하며, 말하기 파형·확인 체크·문서 모으기·리포트 전달을 각각 다른 CSS 애니메이션으로 표현합니다. 화면 밖에서는 멈추며 사용자가 일시 정지하거나 기기의 동작 줄이기 설정을 적용할 수 있습니다. 원본 생성 프롬프트와 자산 경로는 [docs/illustrations.md](docs/illustrations.md)에 있습니다.
+
+## AI 작업 맥락과 제출 기록
+
+- [AGENTS.md](AGENTS.md): 목적·기술·디자인·개인정보 경계·작업 및 검증 규칙
+- [CLAUDE.md](CLAUDE.md): Claude 시작점
+- [docs/ui-system.md](docs/ui-system.md): Tailwind·shadcn 출처와 재사용 구조
+- [docs/implementation.md](docs/implementation.md): Figma 13개 화면 대응·원본과의 차이 및 보정
+- [docs/submission.md](docs/submission.md): 제출 체크리스트·검증 결과·배포 증적
+
+언어 전환은 `/`와 `/en/` 사이를 이동합니다. 작성 중이라면 브라우저의 나가기 경고가 표시되며, 실제로 이동하면 메모리의 초안이 사라집니다.
+
+Lighthouse: `npm run audit:lighthouse` (먼저 빌드·미리보기 실행). 결과는 `.lighthouse/`에 저장합니다. `AUDIT_URL`로 배포 URL도 검사할 수 있습니다.

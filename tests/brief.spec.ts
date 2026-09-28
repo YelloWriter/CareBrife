@@ -63,7 +63,7 @@ test("landing CTA, input, edits, read mode, PDF and exit retain the user's data"
   await page.keyboard.press("Escape"); await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.getByRole("button", { name:"나가기", exact:true }).click();
   await page.getByRole("button", { name:"저장하지 않고 나가기" }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3000/#top");
+  await expect(page).toHaveURL(/\/#top$/);
   expect(errors).toEqual([]);
 });
 test("unsupported microphone recovers to manual writing without losing input", async ({ page }) => {

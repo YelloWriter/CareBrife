@@ -1,4 +1,4 @@
-.bf-app { --bf-ink:#33445e; --bf-muted:#5b687c; --bf-brand:#536db6; --bf-line:#dce2ed; --bf-cyan:#eaf7fb; --bf-soft:#f1f2f8; color:var(--bf-ink); background:#f8f7f3; min-height:100dvh; font-family:"Noto Sans KR",sans-serif; }
+.bf-app { --bf-ink:#33445e; --bf-muted:#5b687c; --bf-brand:#536db6; --bf-line:#dce2ed; --bf-cyan:#eaf7fb; --bf-soft:#f1f2f8; color:var(--bf-ink); background:#f8f7f3; min-height:100dvh; font-family:"Noto Sans KR Variable",sans-serif; }
 .bf-app * { box-sizing:border-box; }
 .bf-app .bf-title,.bf-app h2,.bf-app p { margin:0; }
 .bf-app button { -webkit-appearance:none; }

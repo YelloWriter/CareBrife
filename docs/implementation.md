@@ -58,3 +58,6 @@
 - [iPhone Safari 웹사이트 설정](https://support.apple.com/guide/iphone/browse-the-web-privately-iphb01fc3c85/ios)
 - [Mac Safari 웹사이트 설정](https://support.apple.com/guide/safari/websites-ibrwe2159f50/mac)
 - [Mac 마이크 접근 제어](https://support.apple.com/guide/mac-help/control-access-to-the-microphone-mchla1b1e1fe/mac)
+
+## 제출 기준 보완 (2026-09-28)
+Tailwind CSS 4와 공식 shadcn/ui Button·Card를 기존 시안의 색·간격에 맞춰 적용했습니다. 랜딩 11개 섹션을 역할별 파일로 분리하고 메타데이터의 클라이언트 DOM 수정을 제거했습니다. 서버에서 언어별 메타데이터를 출력하며 중복 description을 재검사했습니다. 서체 자체 제공, 소형 로고 재사용, 푸터 색 대비 보정 후 모바일·데스크톱 캡처와 기능 테스트를 확인했습니다. 이전 Firebase 기준 기록 이후 제출 배포 대상은 Vercel로 변경합니다. 최신 품질·배포 상태는 submission.md를 기준으로 합니다.

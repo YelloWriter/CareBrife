@@ -6,6 +6,7 @@ import { arrangeSentences, emptyBrief, organizeStory } from "../lib/brief";
 import type { Brief } from "../lib/brief";
 import "./brief-flow.css";
 import MicrophoneHelp from "./MicrophoneHelp";
+import { Button as UIButton } from "./ui/button";
 
 type Screen = "start" | "voice" | "recording" | "text" | "processing" | "review" | "manual" | "complete" | "read" | "speech-error" | "organize-error" | "pdf-error";
 const nodeIds: Record<Screen, string> = { start: "842:1821", voice: "842:1846", recording: "842:1868", text: "842:1895", processing: "844:1839", review: "842:1914", manual: "844:1852", complete: "842:1939", read: "843:1931", "speech-error": "842:1966", "organize-error": "842:1978", "pdf-error": "842:1990" };
@@ -22,7 +23,7 @@ const fields: { key: keyof Brief; label: string; placeholder: string }[] = [
   { key: "questions", label: "의료진께 물어볼 질문 · 선택", placeholder: "의료진께 궁금한 점이 있나요?" },
 ];
 function Button({ children, onClick, secondary = false, disabled = false }: { children: ReactNode; onClick: () => void; secondary?: boolean; disabled?: boolean }) {
-  return <button type="button" className={`bf-button${secondary ? " bf-secondary" : ""}`} onClick={onClick} disabled={disabled}>{children}</button>;
+  return <UIButton type="button" size="flow" variant={secondary ? "outline" : "default"} className={`bf-button${secondary ? " bf-secondary" : ""}`} onClick={onClick} disabled={disabled}>{children}</UIButton>;
 }
 function Prompt() { return <div className="bf-prompt"><strong>이번 진료에서</strong><p>설명하고 싶은 상태와 그동안의 변화를<br />편하게 알려주세요.</p></div>; }
 function Logo() { return <img className="bf-logo" src="/figma/logo.png" width="140" height="41" alt="진료한장 - 진료보다 먼저 도착하는 마음" />; }

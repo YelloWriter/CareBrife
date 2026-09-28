@@ -6,3 +6,11 @@ dist
 firebase-debug.log
 sources/
 AGENTS.md
+
+.next/
+out/
+*.tsbuildinfo
+playwright-report/
+test-results/
+CLAUDE.md
+next-env.d.ts

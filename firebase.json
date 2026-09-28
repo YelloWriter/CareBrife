@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "dist",
+    "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -28,15 +28,9 @@
         "type": 301
       }
     ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
     "headers": [
       {
-        "source": "**/*.@(js|css)",
+        "source": "/_next/static/**",
         "headers": [
           {
             "key": "Cache-Control",
@@ -45,7 +39,7 @@
         ]
       },
       {
-        "source": "/index.html",
+        "source": "**/*.html",
         "headers": [
           {
             "key": "Cache-Control",

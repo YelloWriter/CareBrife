@@ -1,0 +1,126 @@
+{
+  "sourceCommit": "4227ec9a5eee524b4fe6d360e106940c460a0513",
+  "url": "https://carebrief-iota.vercel.app",
+  "measurements": [
+    {
+      "url": "https://carebrief-iota.vercel.app",
+      "measuredAt": "2026-09-28T06:52:55.638Z",
+      "runs": [
+        {
+          "mode": "mobile",
+          "lighthouseVersion": "13.5.0",
+          "scores": {
+            "performance": 97,
+            "accessibility": 100,
+            "best-practices": 100,
+            "seo": 100
+          },
+          "metrics": {
+            "first-contentful-paint": 1436.604,
+            "largest-contentful-paint": 2036.604,
+            "total-blocking-time": 144,
+            "cumulative-layout-shift": 0.003973,
+            "speed-index": 2884.5501748579927
+          }
+        },
+        {
+          "mode": "desktop",
+          "lighthouseVersion": "13.5.0",
+          "scores": {
+            "performance": 100,
+            "accessibility": 100,
+            "best-practices": 100,
+            "seo": 100
+          },
+          "metrics": {
+            "first-contentful-paint": 336.9871,
+            "largest-contentful-paint": 416.9871,
+            "total-blocking-time": 0,
+            "cumulative-layout-shift": 0.001968,
+            "speed-index": 336.9871
+          }
+        }
+      ]
+    },
+    {
+      "url": "https://carebrief-iota.vercel.app",
+      "measuredAt": "2026-09-28T06:53:18.215Z",
+      "runs": [
+        {
+          "mode": "mobile",
+          "lighthouseVersion": "13.5.0",
+          "scores": {
+            "performance": 94,
+            "accessibility": 100,
+            "best-practices": 100,
+            "seo": 100
+          },
+          "metrics": {
+            "first-contentful-paint": 2116.9719999999998,
+            "largest-contentful-paint": 2716.9719999999998,
+            "total-blocking-time": 103.5,
+            "cumulative-layout-shift": 0.004337,
+            "speed-index": 2116.9719999999998
+          }
+        },
+        {
+          "mode": "desktop",
+          "lighthouseVersion": "13.5.0",
+          "scores": {
+            "performance": 100,
+            "accessibility": 100,
+            "best-practices": 100,
+            "seo": 100
+          },
+          "metrics": {
+            "first-contentful-paint": 337.89959999999996,
+            "largest-contentful-paint": 417.89959999999996,
+            "total-blocking-time": 0,
+            "cumulative-layout-shift": 0.002117,
+            "speed-index": 346.2439282977448
+          }
+        }
+      ]
+    },
+    {
+      "url": "https://carebrief-iota.vercel.app",
+      "measuredAt": "2026-09-28T06:53:39.531Z",
+      "runs": [
+        {
+          "mode": "mobile",
+          "lighthouseVersion": "13.5.0",
+          "scores": {
+            "performance": 99,
+            "accessibility": 100,
+            "best-practices": 100,
+            "seo": 100
+          },
+          "metrics": {
+            "first-contentful-paint": 1365.893,
+            "largest-contentful-paint": 1965.893,
+            "total-blocking-time": 80,
+            "cumulative-layout-shift": 0.003826,
+            "speed-index": 1621.9015882465728
+          }
+        },
+        {
+          "mode": "desktop",
+          "lighthouseVersion": "13.5.0",
+          "scores": {
+            "performance": 100,
+            "accessibility": 100,
+            "best-practices": 100,
+            "seo": 100
+          },
+          "metrics": {
+            "first-contentful-paint": 417.4539,
+            "largest-contentful-paint": 497.4539,
+            "total-blocking-time": 0,
+            "cumulative-layout-shift": 0.001706,
+            "speed-index": 417.4539
+          }
+        }
+      ]
+    }
+  ]
+}

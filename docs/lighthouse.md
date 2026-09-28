@@ -33,3 +33,16 @@ AUDIT_URL=https://carebrief-iota.vercel.app AUDIT_OUTPUT_DIR=.lighthouse/product
 ```
 
 Chrome 실행 파일이 자동 감지되지 않으면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`을 지정합니다. 로컬 측정은 `npm run build`와 `npm run preview` 후 별도 터미널에서 `npm run audit:lighthouse`를 실행합니다. HTML·JSON 전체 리포트와 `summary.json`이 출력 폴더에 저장됩니다. 네트워크·CPU 부하에 따라 측정값이 달라질 수 있습니다.
+
+## 최종 운영 측정 — 3회
+
+코드 커밋: `4227ec9a5eee524b4fe6d360e106940c460a0513`. GitHub `main` push → Vercel 자동 배포 성공 후 같은 URL을 3회 연속 측정했습니다. 점수는 중앙값이며 괄호는 성능 점수 범위입니다.
+
+| 환경 | 성능 중앙값(범위) | 접근성 | 권장사항 | SEO |
+| --- | ---: | ---: | ---: | ---: |
+| 모바일 | 97 (94–99) | 100 | 100 | 100 |
+| 데스크톱 | 100 (100–100) | 100 | 100 | 100 |
+
+모바일 성능은 순서대로 97·94·99, 데스크톱은 100·100·100입니다. [3회 측정 원본 요약과 지표](lighthouse-after.json)에 시각·Lighthouse 버전·FCP·LCP·TBT·CLS·Speed Index를 보존했습니다. 초기 단일 측정과 최종 3회 중앙값을 비교해 점수가 상승했다고 주장하지 않습니다. 제목 지연·이미지 전송량·불필요한 DOM 작업을 개선하고 모션과 기능을 유지한 결과입니다.
+
+최종 모바일 검사에서 이미지 전송 경고가 해소됐습니다. 데스크톱의 작은 로고에는 추가 압축 권고가 남아 있으며, 미사용 CSS/JS·렌더링 차단 스타일·프레임워크 호환 코드도 추가 최적화 후보입니다. 한글 서체와 로고의 가독성을 보존하는 범위에서 조정했습니다.

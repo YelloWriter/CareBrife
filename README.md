@@ -122,3 +122,5 @@ Lighthouse: `npm run audit:lighthouse` (먼저 빌드·미리보기 실행). 결
 - **FAQ와 언어 전환:** 키보드로 펼칠 수 있는 질문 목록, 한국어/영어 랜딩.
 
 최신 Lighthouse 측정 조건·점수·개선 내용은 [품질 점검 기록](docs/lighthouse.md)에 있습니다. 점수는 실험실 측정값이며 실제 사용자 환경에 따라 달라집니다. `AUDIT_URL=https://carebrief-iota.vercel.app AUDIT_OUTPUT_DIR=.lighthouse/production npm run audit:lighthouse`로 재측정할 수 있습니다. 브라우저를 자동으로 찾지 못하면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`에 Chrome 실행 파일 경로를 지정하세요.
+
+2026-09-28 운영 사이트 Lighthouse 3회 측정 중앙값: **모바일 성능 97(94–99), 데스크톱 성능 100**, 접근성·권장사항·SEO는 두 환경 모두 **100**입니다. 자세한 수치와 남은 최적화 후보는 위 품질 점검 기록에서 확인할 수 있습니다.

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { arrangeSentences, validateGrouping } from "../src/lib/brief";
+import { arrangeSentences, groupWithEngine, validateGrouping } from "../src/lib/brief";
+import type { MLCEngineInterface, ChatCompletionRequestNonStreaming } from "@mlc-ai/web-llm";
 const story = "계단을 내려갈 때 왼쪽 무릎이 불편해요. 지난주부터 시작됐고 어제는 더 뻐근했어요. 어떤 움직임을 피하면 좋을까요?";
 async function textInput(page: Page) {
   await page.goto("/create/");
@@ -15,6 +16,23 @@ test("original sentences are preserved and invalid AI output rejected", () => {
   expect(() => validateGrouping(["A", "B"], { main:[0], changes:[], questions:[] })).toThrow();
   expect(() => validateGrouping(["A"], { main:[0], changes:[0], questions:[] })).toThrow();
   expect(() => validateGrouping(["A"], { main:[5], changes:[], questions:[] })).toThrow();
+});
+test("AI request supplies a WASM-compatible JSON schema and validates every source sentence", async () => {
+  let output = { main:[0], changes:[1], questions:[2] };
+  const engine = { chat: { completions: { create: async (request: ChatCompletionRequestNonStreaming) => {
+    // Reproduce the compiler's string requirement; missing schema caused the live failure.
+    const schema = request.response_format?.schema;
+    if (typeof schema !== "string") throw new Error("Cannot pass non-string to std::string");
+    const parsed = JSON.parse(schema);
+    expect(parsed.required).toEqual(["main", "changes", "questions"]);
+    expect(parsed.properties.main.items).toMatchObject({ type:"integer", minimum:0, maximum:2 });
+    return { choices:[{ message:{ content:JSON.stringify(output) } }] };
+  } } } } as unknown as Pick<MLCEngineInterface, "chat">;
+  const signal = new AbortController().signal;
+  expect(await groupWithEngine(engine, story, signal)).toEqual(arrangeSentences(story));
+  output = { main:[0], changes:[0], questions:[2] };
+  await expect(groupWithEngine(engine, story, signal)).rejects.toThrow("Invalid sentence index");
+  await expect(groupWithEngine(engine, story, AbortSignal.abort())).rejects.toThrow();
 });
 test("landing CTA, input, edits, read mode, PDF and exit retain the user's data", async ({ page }) => {
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
@@ -67,7 +85,7 @@ test("landing CTA, input, edits, read mode, PDF and exit retain the user's data"
   expect(errors).toEqual([]);
 });
 test("unsupported microphone recovers to manual writing without losing input", async ({ page }) => {
-  await page.addInitScript(() => { Object.defineProperty(window, "SpeechRecognition", { value:undefined }); Object.defineProperty(window, "webkitSpeechRecognition", { value:undefined }); });
+  await page.addInitScript(() => { Object.defineProperty(window, "SpeechRecognition", { value:undefined }); Object.defineProperty(window, "webkitSpeechRecognition", { value:undefined }); Object.defineProperty(navigator, "mediaDevices", { value:undefined }); });
   await page.goto("/create/"); await page.getByRole("button", { name:"진료한장 만들기", exact:true }).click();
   await page.getByRole("button", { name:"녹음 시작" }).click();
   await expect(page.getByRole("heading", { name:"말을 글로 바꾸지 못했어요" })).toBeVisible();
@@ -103,7 +121,7 @@ test("recording uses actual recognition events and finishes after five minutes",
   await expect(page.getByRole("heading", { name:"정리된 내용을 확인해 주세요" })).toBeVisible();
   await expect(page.getByLabel("가장 전하고 싶은 내용", { exact:true })).toHaveValue("무릎이 불편해요.");
 });
-test("processing timeout preserves source for retry or manual recovery", async ({ page }) => {
+test("processing timeout recovers to editable review with every original sentence", async ({ page }) => {
   // Hold the model import request to simulate an unavailable download.
   await textInput(page);
   await page.route("**/_next/static/chunks/**", async route => {
@@ -117,10 +135,47 @@ test("processing timeout preserves source for retry or manual recovery", async (
   await expect(page.locator(".bf-app")).toHaveAttribute("data-screen", "processing");
   await page.locator(".bf-app").screenshot({ path:"test-results/processing.png" });
   await page.clock.fastForward(91_000);
-  await expect(page.getByRole("heading", { name:"내용을 정리하지 못했어요" })).toBeVisible();
-  await page.locator(".bf-app").screenshot({ path:"test-results/organize-error.png" });
-  await page.getByRole("button", { name:"직접 작성하기", exact:true }).click();
+  await expect(page.getByRole("heading", { name:"정리된 내용을 확인해 주세요" })).toBeVisible();
+  await expect(page.getByText("AI 정리를 마치지 못해 원문을 문장 기준으로 나눴어요.", { exact:false })).toBeVisible();
+  await page.locator(".bf-app").screenshot({ path:"test-results/organize-recovery.png" });
   await expect(page.getByLabel("가장 전하고 싶은 내용", { exact:true })).toHaveValue(/왼쪽 무릎/);
+  await expect(page.getByLabel("그동안의 변화", { exact:true })).toHaveValue(/지난주/);
+  await expect(page.getByLabel("의료진께 물어볼 질문 · 선택", { exact:true })).toHaveValue(/피하면/);
+  await page.getByText("받아쓴 글 보기").click();
+  await expect(page.locator(".bf-transcript p")).toHaveText(story);
+});
+
+test("AI initialization failure falls back without discarding the transcript", async ({ page }) => {
+  await textInput(page);
+  await page.evaluate(() => Object.defineProperty(navigator, "gpu", { value:{ requestAdapter: async () => null }, configurable:true }));
+  await page.getByLabel("전하고 싶은 이야기").fill(story);
+  await page.getByRole("button", { name:"내용 정리하기" }).click();
+  await expect(page.locator(".bf-app")).toHaveAttribute("data-screen", "review");
+  await expect(page.getByText("AI 정리를 마치지 못해 원문을 문장 기준으로 나눴어요.", { exact:false })).toBeVisible();
+  await page.getByText("받아쓴 글 보기").click();
+  await expect(page.locator(".bf-transcript p")).toHaveText(story);
+});
+
+test("stopping speech preserves the latest interim words without duplicating revisions", async ({ page }) => {
+  await page.addInitScript(() => {
+    class Speech {
+      onstart?: () => void; onresult?: (e: unknown) => void; onend?: () => void;
+      start() {
+        this.onstart?.();
+        this.onresult?.({ results:[{ isFinal:false, 0:{ transcript:"무릎" } }] });
+        this.onresult?.({ results:[{ isFinal:true, 0:{ transcript:"무릎이 불편해요." } }, { isFinal:false, 0:{ transcript:"어제부터 그랬어요." } }] });
+      }
+      stop() { this.onend?.(); } abort() {}
+    }
+    Object.defineProperty(window, "SpeechRecognition", { value:Speech });
+  });
+  await page.goto("/create/");
+  await page.getByRole("button", { name:"진료한장 만들기", exact:true }).click();
+  await page.getByRole("button", { name:"녹음 시작" }).click();
+  await page.getByRole("button", { name:"녹음 마치기" }).click();
+  await expect(page.locator(".bf-app")).toHaveAttribute("data-screen", "review");
+  await page.getByText("받아쓴 글 보기").click();
+  await expect(page.locator(".bf-transcript p")).toHaveText("무릎이 불편해요. 어제부터 그랬어요.");
 });
 test("mobile, desktop, English landing and back navigation render without overflow", async ({ page }) => {
   await textInput(page); await page.getByLabel("전하고 싶은 이야기").fill("증상을 적었어요.");

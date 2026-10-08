@@ -83,21 +83,25 @@ export async function cleanupFiles() {
       .select("path")
       .lte("ready_at", new Date().toISOString())
       .limit(10);
-    for (const row of data || []) {
-      const { data: references, error: referenceError } = await db
-        .from("preparation_templates")
-        .select("id")
-        .eq("image_path", row.path)
-        .limit(1);
-      if (referenceError) continue;
-      if (references?.length) {
-        await db.from("template_file_cleanup").delete().eq("path", row.path);
-        continue;
-      }
-      const { error } = await db.storage.from(BUCKET).remove([row.path]);
-      if (!error)
-        await db.from("template_file_cleanup").delete().eq("path", row.path);
-    }
+    const paths = (data || []).map((row) => row.path as string);
+    if (!paths.length) return;
+    const { data: references, error: referenceError } = await db
+      .from("preparation_templates")
+      .select("image_path")
+      .in("image_path", paths);
+    if (referenceError) return;
+    const protectedPaths = new Set(
+      (references || []).map((row) => row.image_path),
+    );
+    const removable = paths.filter((path) => !protectedPaths.has(path));
+    const { error } = removable.length
+      ? await db.storage.from(BUCKET).remove(removable)
+      : { error: null };
+    const finished = error
+      ? paths.filter((path) => protectedPaths.has(path))
+      : paths;
+    if (finished.length)
+      await db.from("template_file_cleanup").delete().in("path", finished);
   } catch {
     /* Durable queue is retried on a later mutation. */
   }

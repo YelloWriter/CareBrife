@@ -22,7 +22,7 @@ export function DeleteTemplate({
     try {
       const res = await fetch(`/api/templates/${id}/`, {
         method: "DELETE",
-        headers: { "If-Match": String(version) },
+        headers: { "X-Template-Version": String(version) },
       });
       if (!res.ok) {
         const result = await res.json();

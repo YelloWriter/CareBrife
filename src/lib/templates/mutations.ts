@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import sharp from "sharp";
 import { randomUUID } from "node:crypto";
 import { BUCKET, cleanupFiles, database, getTemplate } from "./server";
@@ -180,7 +181,7 @@ export async function saveTemplate(
   });
   if (error) {
     // Keep upload candidates on their grace period: a network error may follow a committed DB write.
-    await cleanupFiles();
+    after(cleanupFiles);
     if (error.message.includes("TEMPLATE_LIMIT"))
       throw new TemplateError(
         "무료 체험 저장 공간이 가득 찼어요. 필요 없는 예시를 삭제한 후 다시 시도해 주세요.",
@@ -195,7 +196,7 @@ export async function saveTemplate(
       "저장 결과를 확인하지 못했어요. 목록에서 확인한 후 다시 시도해 주세요.",
     );
   }
-  await cleanupFiles();
+  after(cleanupFiles);
   return id;
 }
 export function apiError(error: unknown) {

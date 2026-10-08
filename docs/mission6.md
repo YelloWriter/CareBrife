@@ -45,7 +45,7 @@
 | path | text PK | 정리할 Storage 객체 경로 |
 | ready_at | timestamptz | 정리 가능한 시각; 업로드 후보는 1시간 뒤, 교체/삭제된 파일은 즉시 |
 
-Storage와 DB는 하나의 트랜잭션으로 묶을 수 없으므로 파일 정리 대기열을 둡니다. 업로드 전에 후보를 기록하고 DB 저장 성공 시 같은 트랜잭션의 트리거로 후보를 제거합니다. 교체·삭제 시 기존 파일을 대기열에 추가합니다. 파일 삭제에 실패하면 후속 쓰기 요청에서 최대 10개씩 재시도합니다. 유료 cron이나 별도 작업 서버는 사용하지 않습니다. 쓰기 요청이 없으면 대기 파일이 남을 수 있으므로 운영자가 Storage와 대기열을 점검할 수 있습니다.
+Storage와 DB는 하나의 트랜잭션으로 묶을 수 없으므로 파일 정리 대기열을 둡니다. 업로드 전에 후보를 기록하고 DB 저장 성공 시 같은 트랜잭션의 트리거로 후보를 제거합니다. 교체·삭제 시 기존 파일을 대기열에 추가합니다. 파일 삭제는 Next.js `after()`로 저장 응답 뒤에 실행합니다. 삭제에 실패하면 후속 쓰기 요청에서 최대 10개씩 묶어 재시도합니다. 유료 cron이나 별도 작업 서버는 사용하지 않습니다. 쓰기 요청이 없으면 대기 파일이 남을 수 있으므로 운영자가 Storage와 대기열을 점검할 수 있습니다.
 
 ## 데이터 접근과 파일
 
@@ -109,3 +109,7 @@ DB 비밀키 없는 기본 CI는 유효성 검사·잘못된 주소·Origin 차�
 모바일 320·390, 태블릿 768, 데스크톱 1440px 가로 넘침 검사와 390/1440px 화면 캡처를 확인했습니다. [목록 데스크톱](screenshots/templates-desktop.png), [목록 모바일](screenshots/templates-mobile.png), [상세 모바일](screenshots/templates-detail-mobile.png), [입력 모바일](screenshots/templates-form-mobile.png).
 
 Next.js를 16.4.0으로 보안 패치했고 더 이상 쓰지 않는 정적 서버 의존성을 제거했습니다. `npm audit` 취약점 0개 확인. Supabase 보안 검사: ERROR/WARN 없음, 의도적인 기본 차단 RLS/no-policy INFO 2건([설명](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)).
+
+운영 확인 중 미국 기본 실행 리전과 서울 DB 간 왕복 및 동기 파일 정리로 완료 안내가 늦어지는 현상을 발견했습니다. Vercel 단일 실행 리전을 서울(`icn1`)로 맞추고 파일 정리를 응답 후 `after()`에서 배치 처리하도록 보완했습니다. 추가 리전이나 유료 작업 서비스는 사용하지 않습니다.
+
+삭제 버전은 `X-Template-Version` 헤더로 전송합니다. HTTP 표준 `If-Match`는 Vercel의 조건부 응답 처리(412)와 충돌하므로 사용하지 않습니다. DB의 version 조건 검사는 그대로 유지합니다.

@@ -12,13 +12,11 @@ test("template form validates empty values and bad files without saving", async 
     "입력 항목",
   );
   await expect(page.locator("#title-error")).toContainText("2~60자");
-  await page
-    .locator("#image")
-    .setInputFiles({
-      name: "not-an-image.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("example"),
-    });
+  await page.locator("#image").setInputFiles({
+    name: "not-an-image.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("example"),
+  });
   await expect(page.locator("#image-error")).toContainText("PNG, JPG, WebP");
   await expect(page.locator("#image")).toHaveValue("");
   for (const width of [320, 390, 768, 1440]) {
@@ -79,7 +77,9 @@ test.describe("real Supabase CRUD", () => {
       await page
         .getByRole("button", { name: "템플릿 등록", exact: true })
         .click();
-      await expect(page).toHaveURL(/\/templates\/[a-f0-9-]+\//);
+      await expect(page).toHaveURL(/\/templates\/[a-f0-9-]+\//, {
+        timeout: 15000,
+      });
       id = new URL(page.url()).pathname.split("/")[2];
       await expect(page.getByRole("status")).toContainText("등록했어요");
       await page.reload();
@@ -102,11 +102,19 @@ test.describe("real Supabase CRUD", () => {
       await page.locator("#title").fill(`${title} 수정`);
       await page.getByLabel("기존 이미지 삭제", { exact: false }).check();
       await page.getByLabel(consent).check();
+      const update = page.waitForResponse(
+        (res) =>
+          res.url().includes(`/api/templates/${id}/`) &&
+          res.request().method() === "PATCH",
+      );
       await page
         .getByRole("button", { name: "수정 내용 저장", exact: true })
         .click();
-      await expect(page.getByRole("status")).toContainText("수정한 내용");
+      expect((await update).status()).toBe(200);
       version = 2;
+      await expect(page.getByRole("status")).toContainText("수정한 내용", {
+        timeout: 15000,
+      });
       await expect(page.getByText("첨부된 이미지가 없어요.")).toBeVisible();
       expect((await request.get(`/api/templates/${id}/image/`)).status()).toBe(
         404,
@@ -139,7 +147,7 @@ test.describe("real Supabase CRUD", () => {
     } finally {
       if (id)
         await request.delete(`/api/templates/${id}/`, {
-          headers: { Origin: base(), "If-Match": String(version) },
+          headers: { Origin: base(), "X-Template-Version": String(version) },
         });
     }
   });
@@ -233,7 +241,7 @@ test.describe("real Supabase CRUD", () => {
     } finally {
       for (const id of ids)
         await request.delete(`/api/templates/${id}/`, {
-          headers: { Origin: base(), "If-Match": "1" },
+          headers: { Origin: base(), "X-Template-Version": "1" },
         });
     }
   });

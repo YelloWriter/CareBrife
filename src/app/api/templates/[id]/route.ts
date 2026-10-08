@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import {
   apiError,
   checkOrigin,
@@ -22,7 +23,7 @@ export async function DELETE(request: Request, { params }: Context) {
   try {
     checkOrigin(request);
     const { id } = await params;
-    const version = Number(request.headers.get("if-match"));
+    const version = Number(request.headers.get("x-template-version"));
     if (!isUUID(id) || !Number.isInteger(version) || version < 1)
       throw new TemplateError("삭제할 항목을 다시 확인해 주세요.", 400);
     const { data, error } = await database()
@@ -38,7 +39,7 @@ export async function DELETE(request: Request, { params }: Context) {
         "이미 삭제됐거나 수정된 항목이에요. 목록에서 확인해 주세요.",
         409,
       );
-    await cleanupFiles();
+    after(cleanupFiles);
     return Response.json({ deleted: true });
   } catch (error) {
     return apiError(error);

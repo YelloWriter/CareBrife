@@ -9,7 +9,7 @@
 - `src/components/ui`: 공식 shadcn 레지스트리에서 가져와 브랜드에 맞춘 공통 UI.
 - `BriefFlow`: 13개 Figma 화면의 상태·입력·오류 복구. `MicrophoneHelp`: 권한 안내.
 - `src/lib/brief.ts`: 사용자 원문 보존과 분류 결과 검증.
-- 정적 내보내기 `out/`, GitHub 연동 Vercel 배포. 기존 도메인 carebrief.co.kr은 Firebase Hosting(carebrief-co-kr)에 별도 CLI 배포하며 GitHub push만으로 갱신되지는 않습니다.
+- Next 서버 실행, GitHub 연동 Vercel 배포. 기존 도메인 carebrief.co.kr의 Firebase 정적 배포는 미션 5 상태를 유지합니다. 현재 빌드는 정적 Firebase에 배포하지 않습니다.
 
 ## 디자인 원칙
 - 종이색 `#f8f7f3`, 본문 `#33445e`, 브랜드 블루 `#536db6`, 시안 `#48b1df`.
@@ -45,3 +45,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## 미션 6 데이터 규칙
+- `docs/mission6.md`에 기능 명세·테이블 구조·환경 변수 이름·QA를 관리합니다.
+- `/templates`는 로그인 없는 공개 예시 CRUD입니다. 실제 이름·연락처·건강정보와 기존 BriefFlow 입력은 절대로 DB/Storage에 보내지 않습니다.
+- 테이블 `preparation_templates`: id UUID, title/category/summary/checklist, image_path/image_alt nullable, version, created_at/updated_at. `template_file_cleanup`: path, ready_at. 실제 스키마는 `supabase/migrations`가 기준입니다.
+- 서버 전용 Supabase client/Route Handlers만 DB·Storage에 접근합니다. `SUPABASE_SECRET_KEY`를 공개하거나 NEXT_PUBLIC 접두사로 만들지 않습니다. anon 직접 권한은 차단하며 사용자별 정책은 후속 미션에서 구현합니다.
+- 무료 요금제를 유지합니다. 템플릿 100개, 첨부 1개/2MB, 이미지 디코딩·메타데이터 제거·축소를 유지합니다. 유료 업그레이드/추가 서비스 신청 금지.
+- 수정/삭제는 version을 검사합니다. 파일 정리 대기열을 없애거나 DB 삭제만 하고 Storage 처리를 빠뜨리지 않습니다.
+- 실제 DB 테스트는 합성 예시만 쓰고 만든 QA 레코드·파일을 정리합니다. 모의 오류 테스트를 실제 외부 서비스 검증으로 쓰지 않습니다.

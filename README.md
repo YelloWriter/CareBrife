@@ -9,9 +9,8 @@
 - Next.js 16 App Router, React 19, TypeScript
 - Tailwind CSS 4, shadcn/ui (Radix Button·Card), lucide-react
 - Playwright 사용자 흐름 검증, Lighthouse 품질 점검
-- Next.js 서버 렌더링·Route Handlers → GitHub 연동 Vercel 배포
-- Supabase PostgreSQL·Storage: 공개 진료 준비 템플릿 CRUD
-- 유료 AI API 없음. 실제 진료 내용은 기존처럼 브라우저 메모리에서만 처리
+- Next.js 정적 내보내기(`output: "export"`) → `out/` → GitHub 연동 Vercel Hosting
+- 별도의 서버 API, 데이터베이스, 유료 AI API 없음
 
 Node.js 22 LTS와 npm을 권장합니다(최소 Node.js 20.9).
 
@@ -32,22 +31,7 @@ npm run preview
 
 경로는 `/`(한국어 랜딩), `/en/`(영어 랜딩), `/create/`(새 한국어 작성 흐름)입니다. 랜딩의 ‘진료한장 만들어보기’ 버튼은 같은 페이지의 `#create-report` 섹션으로 부드럽게 스크롤합니다. 작성·수정·완료는 그 섹션 안에서 진행되고 다른 랜딩 섹션을 보아도 입력은 유지됩니다. `/create/`는 작성 화면의 직접 접근 주소로도 유지합니다.
 
-`NEXT_PUBLIC_SITE_URL`을 설정하면 소셜 미리보기의 기준 URL을 변경할 수 있습니다. Vercel에서는 제공되는 운영 도메인을 자동으로 사용하고, 로컬에서는 `http://localhost:3000`을 사용합니다. `.env.example`을 참고하세요. 템플릿에는 서버 전용 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`가 필요합니다. `.env.local`과 Vercel Production 환경변수로만 설정하며 GitHub에는 실제 값을 올리지 않습니다.
-
-## 미션 6: 공개 진료 준비 템플릿
-
-[템플릿 바로 가기](https://carebrief-iota.vercel.app/templates/) · [기능 명세·테이블 구조·파일 처리·QA 결과](docs/mission6.md)
-
-- 목록(`/templates/`) → 상세(`/templates/[id]/`) → 등록(`/templates/new/`)·수정(`/templates/[id]/edit/`) → 삭제 확인의 한 사이클.
-- 실제 Supabase DB 저장, 6개씩 페이지네이션, URL 제목 검색·분류, 로딩·오류·빈 상태·없는 주소 처리.
-- 이미지 1개(선택, PNG/JPG/WebP 2MB 이하) 업로드·미리보기·교체·삭제. Storage의 private bucket에 저장하고 상세에서 확인.
-- 중복 제출 방지, 서버/클라이언트/DB 검증, 수정 충돌 검사. 이미지 정리 실패는 DB 대기열에 남겨 재시도.
-- **로그인 없는 공개 예시 공간**: 누구나 조회·수정·삭제합니다. 실제 개인정보·건강정보는 저장하지 않습니다. 기존 진료 내용과 템플릿 데이터는 분리합니다.
-- Supabase Free를 유지하며 유료 업그레이드는 하지 않습니다. 등록 상한 100개, 이미지 크기 제한을 적용합니다.
-
-테이블: `preparation_templates` — UUID, 제목, 분류, 설명, 줄별 준비 항목, 선택 이미지 경로/설명, 버전, 생성/수정 시각. `template_file_cleanup` — 이미지 정리 대기 경로와 처리 시각. 상세 타입·필수값과 접근 규칙은 [미션 6 명세](docs/mission6.md)에 있습니다.
-
-2026-10-08 운영 배포 QA: **29개 통과, 실제 음성 파일을 사용하는 선택 검사 1개 생략**. 실제 Supabase CRUD·파일 업로드·새로고침 유지·검색·페이지네이션, 모바일/데스크톱 화면을 확인했습니다. 공개 예시 3개를 제공하며 테스트 데이터는 정리했습니다. 재현 방법과 검증 범위는 [미션 6 QA](docs/mission6.md#qa-결과-2026-10-08)를 참고하세요.
+`NEXT_PUBLIC_SITE_URL`을 설정하면 소셜 미리보기의 기준 URL을 변경할 수 있습니다. Vercel에서는 제공되는 운영 도메인을 자동으로 사용하고, 로컬에서는 `http://localhost:3000`을 사용합니다. `.env.example`을 참고하세요. 비밀키가 필요한 기능은 없습니다.
 
 ## 새 작성 흐름
 
@@ -90,7 +74,7 @@ npm run build
 npm test
 ```
 
-기존 Chromium을 사용하려면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`에 실행 파일의 절대 경로를 지정합니다. 테스트는 Next.js 운영 서버를 시작하거나 실행 중인 3000번 포트 서버를 사용합니다. `TEST_BASE_URL`로 배포 URL을 지정하면 로컬 서버 없이 해당 배포를 검사합니다.
+기존 Chromium을 사용하려면 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`에 실행 파일의 절대 경로를 지정합니다. 테스트는 빌드 결과를 제공하는 정적 서버를 시작하거나 실행 중인 3000번 포트 서버를 사용합니다. `TEST_BASE_URL`로 배포 URL을 지정하면 로컬 서버 없이 해당 배포를 검사합니다.
 
 테스트 범위: 랜딩 CTA, 글 입력·수정·완료·읽기, 빈 입력 차단, 원문 보존과 모델 결과 검증, 음성 미지원 대체, 모의 음성 이벤트와 5분 종료, 처리 시간 초과 복구, PDF 오류, 나가기 대화상자, 뒤로 가기, 모바일/데스크톱 넘침, 영어 랜딩, 실제 PDF 다운로드·한글 및 페이지 나눔·재시도·생성 취소. 실제 마이크 인식 품질과 실제 기기의 WebGPU 모델 다운로드·추론은 별도 기기 확인이 필요합니다.
 
@@ -103,14 +87,23 @@ npm test
 - GitHub: https://github.com/YelloWriter/CareBrife
 - Vercel 배포 URL: **https://carebrief-iota.vercel.app**
 - Framework Preset: Next.js / Root Directory: 저장소 루트 / Build: `npm run build`
-- Output Directory: Vercel 기본 자동 감지. 정적 export가 아닌 Next.js 서버를 사용합니다.
-- 필수 환경변수: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`(서버 전용). 선택: `NEXT_PUBLIC_SITE_URL`.
+- Output Directory: Vercel 기본 자동 감지. Next 정적 export 설정이 `out/`을 생성합니다.
+- 필수 환경변수 없음. 커스텀 도메인은 `NEXT_PUBLIC_SITE_URL`에 공개 origin을 지정합니다.
 
 Vercel에서 위 GitHub 저장소를 Import하고 운영 브랜치를 `main`으로 지정합니다. 이후 GitHub의 `main` 변경이 자동으로 운영에 배포됩니다. 다른 브랜치는 미리보기 배포에 사용합니다. 제출 저장소는 **Public**이며 별도 GitHub 초대 없이 열람할 수 있습니다.
 
-기존 커스텀 도메인 **https://carebrief.co.kr**은 Firebase Hosting의 미션 5 정적 버전입니다. 미션 6의 CRUD는 서버가 필요한 Vercel에서 제공합니다. 현재 코드를 정적 `out/`으로 Firebase에 배포하지 마세요. [기존 도메인 배포 기록](docs/firebase-domain.md)은 과거 정적 버전의 기록입니다.
+기존 커스텀 도메인 **https://carebrief.co.kr**도 동일한 Next.js 코드를 Firebase Hosting에서 제공합니다. Firebase 프로젝트·사이트는 `carebrief-co-kr`이며, 기존 저장소는 [YelloWriter/carebrief](https://github.com/YelloWriter/carebrief)입니다. 두 저장소의 최신 코드를 동기화했습니다.
 
-베타 신청 링크는 기존 `src/components/landing/shared.tsx`의 `BETA_FORM_URL`을 사용합니다. 진료한장 작성 도구의 입력 내용은 React 메모리에만 있으며 localStorage, sessionStorage, 서버 로그 또는 DB에 기록하지 않습니다. 다운로드된 모델 자산은 WebLLM이 브라우저에 캐시할 수 있습니다.
+Vercel은 GitHub push로 자동 배포됩니다. Firebase는 CLI로 별도 배포하므로 **기존 저장소에 push만 해서는 도메인 화면이 바뀌지 않습니다.** 로그인된 Firebase 계정에서 아래 명령으로 도메인용 메타데이터까지 빌드합니다.
+
+```sh
+NEXT_PUBLIC_SITE_URL=https://carebrief.co.kr npm run build
+npx firebase-tools@15.31.0 deploy --only hosting --project carebrief-co-kr
+```
+
+페이지·고정 이름 자산은 매번 재검증하고 해시가 붙은 `/_next/static/` 자산만 장기 캐시합니다. [기존 도메인 배포 기록](docs/firebase-domain.md)을 참고하세요.
+
+베타 신청 링크는 기존 `src/components/landing/shared.tsx`의 `BETA_FORM_URL`을 사용합니다. 입력 내용은 React 메모리에만 있으며 localStorage, sessionStorage, 서버 로그 또는 DB에 기록하지 않습니다. 다운로드된 모델 자산은 WebLLM이 브라우저에 캐시할 수 있습니다.
 
 ## 이용 방법 일러스트
 
